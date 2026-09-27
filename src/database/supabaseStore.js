@@ -82,9 +82,11 @@ export function createSupabaseStore(creds, { logger } = {}) {
       handle(error, `delete ${table}`);
     },
 
-    async searchArticles({ query, limit, offset }) {
+    async searchArticles({ terms, limit, offset }) {
+      const safeTerms = (terms || []).filter(Boolean);
+      const p_query = safeTerms.join(' OR ');
       const { data, error } = await client.rpc('search_articles', {
-        p_query: query,
+        p_query,
         p_limit: limit,
         p_offset: offset,
       });

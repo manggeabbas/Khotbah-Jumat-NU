@@ -75,7 +75,7 @@ test('search: prioritas judul di atas isi', async () => {
   await repos.articles.upsert(
     baseArticle({ url: 'https://x/b', title: 'Topik lain', content: 'banyak sabar di sini', content_hash: 'b' }),
   );
-  const res = await repos.articles.search({ query: 'sabar', limit: 8, offset: 0 });
+  const res = await repos.articles.search({ terms: ['sabar'], limit: 8, offset: 0 });
   assert.ok(res.total >= 1);
   assert.match(res.items[0].title, /Kesabaran/);
 });
@@ -83,7 +83,7 @@ test('search: prioritas judul di atas isi', async () => {
 test('search: tidak mengembalikan artikel non-aktif', async () => {
   const { repos } = setup();
   await repos.articles.upsert(baseArticle({ status: 'parse_failed' }));
-  const res = await repos.articles.search({ query: 'sabar', limit: 8, offset: 0 });
+  const res = await repos.articles.search({ terms: ['sabar'], limit: 8, offset: 0 });
   assert.equal(res.total, 0);
 });
 

@@ -105,10 +105,9 @@ export function createMemoryStore({ now = () => new Date().toISOString() } = {})
       tables.set(t, kept);
     },
 
-    async searchArticles({ query, limit, offset }) {
-      const terms = String(query || '')
-        .toLowerCase()
-        .split(/\s+/)
+    async searchArticles({ terms, limit, offset }) {
+      const queryTerms = (terms || [])
+        .flatMap((t) => String(t).toLowerCase().split(/\s+/))
         .filter(Boolean);
       const scored = [];
       for (const a of table('articles')) {
@@ -121,7 +120,7 @@ export function createMemoryStore({ now = () => new Date().toISOString() } = {})
           [a.snippet, 1],
           [a.content, 1],
         ];
-        for (const term of terms) {
+        for (const term of queryTerms) {
           for (const [value, weight] of fields) {
             if (value && String(value).toLowerCase().includes(term)) score += weight;
           }

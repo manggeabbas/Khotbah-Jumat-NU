@@ -55,8 +55,8 @@ export function createRepositories(store) {
       return rows[0] || null;
     },
 
-    async search({ query, limit, offset }) {
-      return store.searchArticles({ query, limit, offset });
+    async search({ terms, limit, offset }) {
+      return store.searchArticles({ terms, limit, offset });
     },
 
     async latest({ limit, offset = 0 }) {

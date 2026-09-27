@@ -40,14 +40,14 @@ Tanggal audit: 2026-09-27
 | 1 | Fondasi project | PASS | `750fcd3` |
 | 2 | Database Supabase | PASS (mock) / NOT_VERIFIED (live) | `1a0869b` |
 | 3 | Discovery & parser NU Online | IN_PROGRESS | — |
-| 4 | Fondasi Telegram | PENDING | — |
-| 5 | Pencarian & pagination | PENDING | — |
-| 6 | Pembaca artikel | PENDING | — |
-| 7 | PDF | PENDING | — |
-| 8 | Scheduler & sinkronisasi | PENDING | — |
-| 9 | Favorit & riwayat | PENDING | — |
-| 10 | Admin | PENDING | — |
-| 11 | QA, integrasi, hardening | PENDING | — |
+| 4 | Fondasi Telegram | PASS (mock) / NOT_VERIFIED (live) | — |
+| 5 | Pencarian & pagination | PASS | — |
+| 6 | Pembaca artikel | PASS | — |
+| 7 | PDF | PASS (kecuali visual NOT_VERIFIED) | — |
+| 8 | Scheduler & sinkronisasi | PASS (mock) | — |
+| 9 | Favorit & riwayat | PASS | — |
+| 10 | Admin | PASS | — |
+| 11 | QA, integrasi, hardening | IN_PROGRESS | — |
 | 12 | Kesiapan GitHub | PENDING | — |
 | 13 | Kesiapan Termux | PENDING | — |
 
@@ -136,3 +136,52 @@ Tanggal audit: 2026-09-27
   Deteksi bahasa (id/jv) belum dilakukan; default `id`.
 - Masalah tersisa: konten penuh hanya disimpan bila `FULL_CONTENT_ENABLED=true`.
 - Langkah berikut: Fase 4 — fondasi Telegram.
+
+### Fase 4 — Fondasi Telegram
+- File: `src/bot/createBot.js`, `src/bot/session.js`, `src/bot/context.js`,
+  `src/bot/messages.js`, `src/bot/keyboards/keyboards.js`,
+  `src/bot/commands/start.js`, `src/app.js` (composition root), `tests/bot.test.js`.
+- Perintah tes: `npm test` → T-CMD-01/02, T-MENU-01 lulus; `bot.handleUpdate`
+  dengan klien Telegram di-mock (prototype `callApi`).
+- Hasil: `/start`, `/help`, `/menu`, callback ack, sesi, error handler lulus.
+- Long polling dijalankan `bot.launch()`; **live token NOT_VERIFIED** (401 tanpa token nyata).
+- Langkah berikut: Fase 5.
+
+### Fase 5 — Pencarian & pagination
+- File: `src/search/normalize.js`, `src/search/search.js`, `tests/search.test.js`.
+- Hasil: sinonim (shalat→salat, rizki→rezeki, ujian→cobaan), query kosong,
+  search_logs, pagination stabil, query injection aman — semua PASS.
+- Langkah berikut: Fase 6.
+
+### Fase 6 — Pembaca artikel
+- File: `src/bot/handlers/article.js`, `src/utils/splitMessage.js` (revisi heading).
+- Hasil: header/body/footer, mode aman menautkan sumber, riwayat, metadata
+  hilang, pesan panjang dipecah (<4096), Unicode/Arab aman — PASS.
+  Escaping tidak relevan karena pesan dikirim sebagai teks biasa (tanpa parse_mode).
+- Langkah berikut: Fase 7.
+
+### Fase 7 — PDF
+- File: `src/pdf/arabic.js`, `src/pdf/generator.js`, `tests/pdf.test.js`,
+  `fonts/NotoNaskhArabic-Regular.ttf` (Noto Naskh Arabic, OFL),
+  `fonts/NotoSans-Regular.ttf`, `fonts/Amiri-Regular.ttf`.
+- Hasil: shaping + bidi via `arabic-reshaper` + `bidi-js`; PDF A4, nomor halaman,
+  nama file aman, cleanup. Diverifikasi dgn `pdftotext` (Indonesia + Arab berharakat)
+  dan `pdfinfo` (multi-halaman). **NOT_VERIFIED:** inspeksi visual manual.
+- Langkah berikut: Fase 8.
+
+### Fase 8 — Scheduler & sinkronisasi
+- File: `src/scheduler/scheduler.js`, `tests/scheduler.test.js`.
+- Hasil: ekspresi `0 */6 * * *`, start idempoten, stop, error ditangkap,
+  ekspresi invalid ditolak — PASS. Sync lock & idempotensi (Fase 3) PASS.
+- Langkah berikut: Fase 9.
+
+### Fase 9 — Favorit & riwayat
+- File: `src/bot/handlers/favorite.js`; repositori Fase 2.
+- Hasil: simpan + duplikat, isolasi antar pengguna, riwayat 50 terakhir — PASS.
+- Langkah berikut: Fase 10.
+
+### Fase 10 — Admin
+- File: `src/bot/commands/admin.js`.
+- Hasil: user biasa ditolak, admin diizinkan, trigger ganda dibatasi, statistik/
+  log tanpa rahasia — PASS.
+- Langkah berikut: Fase 11 (QA/hardening).
