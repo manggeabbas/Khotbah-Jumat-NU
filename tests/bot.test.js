@@ -240,3 +240,10 @@ test('T-FAV-03: favorit terisolasi antar pengguna', async () => {
   await bot.handleUpdate(callback('menu:fav', 2));
   assert.ok(allTexts(calls).some((t) => /Belum ada khutbah yang disimpan/i.test(t)));
 });
+
+test('T-CB-01: callback data tidak dikenal/expired tidak crash', async () => {
+  const { bot } = await setup();
+  await assert.doesNotReject(() => bot.handleUpdate(callback('art:abc')));
+  await assert.doesNotReject(() => bot.handleUpdate(callback('entah:apa')));
+  await assert.doesNotReject(() => bot.handleUpdate(callback('srch:page:999')));
+});

@@ -99,8 +99,24 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 |---|---|---|---|
 | I-SB-01 | supabase | migrasi + CRUD nyata | NOT_VERIFIED |
 | I-TG-01 | telegram | bot live long polling | NOT_VERIFIED |
-| I-SC-01 | scraper | fetch live NU Online penuh | NOT_VERIFIED |
+| I-SC-01 | scraper | fetch live NU Online (mode aman) | PASS (2026-09-27, 40 ditemukan/3 disimpan/0 gagal) |
 | I-PDF-01 | pdf | kirim dokumen ke Telegram nyata | NOT_VERIFIED |
+
+## 7b. Hardening (Fase 11)
+
+| ID | Area | Skenario | Status |
+|---|---|---|---|
+| H-HTML-01 | parser | HTML rusak/aneh tidak melempar | PASS |
+| H-INPUT-01 | search | query ekstrem/emoji/simbol | PASS |
+| H-ENV-01 | config | env tidak valid → ConfigError | PASS |
+| H-RATE-01 | fetchClient | rate limiting jeda antar permintaan | PASS |
+| H-OFFLINE-01 | fetchClient | offline → retry → ScraperError | PASS |
+| H-SYNC-01 | sync | offline → status failed tanpa throw | PASS |
+| H-PDF-01 | pdf | konten sangat panjang | PASS |
+| H-SECRET-01 | logger | rahasia bertingkat disamarkan | PASS |
+| H-CB-01 | bot | callback tidak dikenal/expired | PASS |
+| — | audit | `npm audit` | PASS (0 vulnerabilities) |
+| — | secret | scan file terlacak | PASS (hanya fixture palsu di tests/) |
 
 ## 8. Termux / perangkat Android
 

@@ -47,9 +47,9 @@ Tanggal audit: 2026-09-27
 | 8 | Scheduler & sinkronisasi | PASS (mock) | — |
 | 9 | Favorit & riwayat | PASS | — |
 | 10 | Admin | PASS | — |
-| 11 | QA, integrasi, hardening | IN_PROGRESS | — |
-| 12 | Kesiapan GitHub | PENDING | — |
-| 13 | Kesiapan Termux | PENDING | — |
+| 11 | QA, integrasi, hardening | PASS (live scraper) / NOT_VERIFIED (Supabase, Telegram live) | — |
+| 12 | Kesiapan GitHub | PASS | — |
+| 13 | Kesiapan Termux | PASS (skrip) / NOT_VERIFIED (perangkat) | — |
 
 ## Keputusan yang menunggu pemilik
 
@@ -185,3 +185,43 @@ Tanggal audit: 2026-09-27
 - Hasil: user biasa ditolak, admin diizinkan, trigger ganda dibatasi, statistik/
   log tanpa rahasia — PASS.
 - Langkah berikut: Fase 11 (QA/hardening).
+
+### Fase 11 — QA, integrasi, hardening
+- File: `tests/hardening.test.js` (+ tambahan tes bot).
+- Perintah tes:
+  - `npm test` → **114 tes, 113 pass, 1 skipped (visual PDF)**.
+  - `npm audit` → **0 vulnerabilities**.
+  - Scan rahasia pada `git ls-files` → tidak ada rahasia nyata (hanya token
+    palsu di `tests/config.test.js` & `tests/logger.test.js`).
+  - Live pipeline (mode aman, in-memory, dibatasi 3 artikel) → ditemukan 40,
+    disimpan 3, gagal 0.
+- Cakupan MVP PRD §38: `/start`, menu, cari, hasil, pagination, pilih artikel,
+  tampilkan artikel, pesan panjang, sumber, PDF (mode penuh), terbaru, Supabase
+  (mock), scraper, scheduler, error handling — terimplementasi. Favorit,
+  riwayat, admin (tahap kedua PRD) juga terimplementasi.
+- **NOT_VERIFIED:** Supabase live, Telegram live, kirim PDF ke Telegram, inspeksi
+  visual PDF, perangkat Termux.
+- Langkah berikut: Fase 12 (kesiapan GitHub).
+
+### Fase 12 — Kesiapan GitHub
+- File: `README.md` (diperluas), `CHANGELOG.md`, `docs/RELEASE_CHECKLIST.md`,
+  `fonts/README.md`.
+- Verifikasi: `.env`/`node_modules`/`tmp`/`*.pdf` tidak terlacak; scan rahasia
+  bersih; `npm ci` + `npm test` dari lock berhasil.
+- Hasil: repo siap di-`push` secara manual oleh pemilik. **Tidak** ada remote /
+  `git push` yang dilakukan agen.
+- Langkah berikut: Fase 13 (kesiapan Termux).
+
+### Fase 13 — Kesiapan Termux
+- File: `docs/TERMUX.md`, `scripts/setup-termux.sh`,
+  `scripts/start-termux.sh`, `scripts/termux-boot.sh`.
+- Verifikasi: `bash -n` pada ketiga skrip → sintaks OK.
+- Dependency: murni JS (tanpa native build) — `pdfkit`, `telegraf`, `cheerio`,
+  `node-cron`, `@supabase/supabase-js`, `arabic-reshaper`, `bidi-js`.
+- **NOT_VERIFIED:** uji perangkat Android nyata, auto-start Termux:Boot, dan
+  ketahanan proses background (butuh perangkat pemilik).
+
+### Pekerjaan selesai — ringkasan
+Seluruh fase 0–13 selesai pada tingkat yang dapat diverifikasi tanpa kredensial.
+Pengujian eksternal yang tersisa memerlukan aksi pemilik (lihat
+`docs/RELEASE_CHECKLIST.md`).
