@@ -1,5 +1,5 @@
 /**
- * Panel admin (allowlist ADMIN_TELEGRAM_ID).
+ * Panel admin (allowlist: TELEGRAM_USER_ID, ID owner/admin).
  */
 import { formatAdmin, formatStats, formatSyncResult, ERRORS } from '../messages.js';
 import { adminKeyboard, backToMenuKeyboard } from '../keyboards/keyboards.js';
@@ -23,6 +23,31 @@ export function createAdminHandlers({ config, repos, syncService, logger }) {
     async menu(ctx) {
       if (!guard(ctx)) return;
       await respond(ctx, formatAdmin(), { reply_markup: adminKeyboard() });
+    },
+
+    async status(ctx) {
+      if (!guard(ctx)) return;
+      let dbOk = false;
+      let articles = 0;
+      let lastSync = null;
+      try {
+        dbOk = typeof repos.store?.ping === 'function' ? await repos.store.ping() : true;
+        articles = await repos.articles.count();
+        lastSync = await repos.syncLogs.last();
+      } catch (err) {
+        logger?.error('[ADMIN] status gagal', err);
+      }
+      const text = [
+        '📊 STATUS BOT',
+        '',
+        'Bot        : aktif (long polling)',
+        `Database   : ${dbOk ? 'OK' : 'GAGAL'}`,
+        `Artikel    : ${articles}`,
+        `Scraper    : ${syncService.running ? 'berjalan' : 'idle'}`,
+        `Last sync  : ${lastSync?.finished_at || lastSync?.started_at || '-'}`,
+        `Sync status: ${lastSync?.status || '-'}`,
+      ].join('\n');
+      await respond(ctx, text, { reply_markup: adminKeyboard() });
     },
 
     async stats(ctx) {

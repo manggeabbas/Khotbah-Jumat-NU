@@ -9,6 +9,7 @@
  */
 import { createHash } from 'node:crypto';
 import { ScraperError } from '../utils/errors.js';
+import { isAllowedArticleUrl, parseIndonesianDate } from './parser.js';
 
 export const LIMITS = Object.freeze({
   minContentLength: 200,
@@ -40,7 +41,8 @@ export function buildArticleRecord(parsed, config) {
     description: parsed.description || null,
     snippet: snippet || null,
     category: parsed.category || null,
-    source: parsed.source || 'NU Online',
+    image_url: parsed.image_url || null,
+    source: 'NU Online',
     content_hash: null,
     status: 'active',
     content: null,
@@ -48,10 +50,15 @@ export function buildArticleRecord(parsed, config) {
     khutbah_2: null,
   };
 
-  // Validasi minimal
+  // Validasi fatal: URL harus ada & valid (domain NU Online) — jika tidak, jangan simpan.
+  if (!base.url || !isAllowedArticleUrl(base.url)) {
+    return null;
+  }
+
+  // Validasi minimal (judul, isi, source).
   const problems = [];
   if (!base.title) problems.push('title kosong');
-  if (!base.url) problems.push('url kosong');
+  if (base.source !== 'NU Online') problems.push('source bukan NU Online');
   if (fullEnabled) {
     if (!fullText || fullText.length < LIMITS.minContentLength) problems.push('konten terlalu pendek');
   } else {
@@ -91,6 +98,7 @@ export function createSyncService({ repos, config, logger, scraper, robots }) {
     running = true;
 
     const stats = { found: 0, inserted: 0, updated: 0, failed: 0 };
+    const errors = [];
     const logRow = await repos.syncLogs.start();
     logger?.info('[SYNC] mulai', { trigger, logId: logRow.id });
 
@@ -122,30 +130,46 @@ export function createSyncService({ repos, config, logger, scraper, robots }) {
             const p = new URL(candidate.url).pathname;
             if (!(await robots.allowed(p))) {
               stats.failed++;
+              errors.push(`robots: ${candidate.url}`);
               continue;
             }
           }
           const parsed = await scraper.fetchArticle(candidate.url);
-          const record = buildArticleRecord(parsed, config);
+          // Lengkapi metadata dari halaman listing bila perlu.
+          const merged = {
+            ...parsed,
+            category: parsed.category || candidate.category || null,
+            image_url: parsed.image_url || candidate.imageUrl || null,
+            published_at: parsed.published_at || parseIndonesianDate(candidate.dateText) || null,
+          };
+          const record = buildArticleRecord(merged, config);
           if (!record) {
             stats.failed++;
+            errors.push(`validasi gagal (tanpa url): ${candidate.url}`);
             logger?.warn('[SYNC] artikel gagal validasi (tanpa url)', { url: candidate.url });
             continue;
           }
           const res = await repos.articles.upsert(record);
-          if (record.status === 'parse_failed') stats.failed++;
-          else if (res.inserted) stats.inserted++;
+          if (record.status === 'parse_failed') {
+            stats.failed++;
+            errors.push(`parse_failed: ${record.url}`);
+          } else if (res.inserted) stats.inserted++;
           else if (res.updated) stats.updated++;
         } catch (err) {
           stats.failed++;
+          errors.push(`${candidate.url}: ${err?.message || err}`);
           logger?.error('[SYNC] gagal memproses artikel', { url: candidate.url, error: err });
         }
       }
 
       const status = stats.failed > 0 ? 'partial' : 'success';
-      await repos.syncLogs.finish(logRow.id, { status, ...stats });
-      logger?.info('[SYNC] selesai', { status, ...stats });
-      return { skipped: false, status, stats };
+      await repos.syncLogs.finish(logRow.id, {
+        status,
+        ...stats,
+        error_message: errors.length > 0 ? errors.slice(0, 20).join('\n') : null,
+      });
+      logger?.info('[SYNC] selesai', { status, ...stats, errors: errors.length });
+      return { skipped: false, status, stats, errors };
     } catch (err) {
       await repos.syncLogs.finish(logRow.id, {
         status: 'failed',

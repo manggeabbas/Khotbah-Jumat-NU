@@ -79,3 +79,26 @@ test('search: query aneh/berbahaya tidak melempar', async () => {
   const res = await svc.search({ query: "'; DROP TABLE articles; --" });
   assert.equal(res.total, 0);
 });
+
+test('U-NORM-04: query Arabic aman & menemukan', async () => {
+  const repos = createRepositories(createMemoryStore());
+  await repos.articles.upsert(baseArticle({ url: 'https://x/ar', title: 'Doa', content: 'السلام عليكم ورحمة الله', content_hash: 'ar' }));
+  const svc = createSearchService({ repos, config: { search: { maxResults: 8 } } });
+  const res = await svc.search({ query: 'السلام' });
+  assert.ok(res.total >= 1);
+});
+
+test('search: query Unicode/emoji tidak melempar', async () => {
+  const repos = createRepositories(createMemoryStore());
+  const svc = createSearchService({ repos, config: { search: { maxResults: 8 } } });
+  await assert.doesNotReject(() => svc.search({ query: '🕌🔥 sabar' }));
+  const res = await svc.search({ query: '→ tidak jelas ✓' });
+  assert.ok(res.total >= 0);
+});
+
+test('search: query sangat panjang dipotong aman', async () => {
+  const repos = createRepositories(createMemoryStore());
+  const svc = createSearchService({ repos, config: { search: { maxResults: 8 } } });
+  const res = await svc.search({ query: 'sabar '.repeat(2000) });
+  assert.ok(res.total >= 0);
+});

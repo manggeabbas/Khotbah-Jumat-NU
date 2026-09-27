@@ -20,6 +20,19 @@ const ID_MONTHS = {
 };
 
 const ARTICLE_PATH = /^\/khutbah\/[^/]+\/?$/;
+const ROOT_DOMAIN = 'nu.or.id';
+
+/** Apakah URL berasal dari domain NU Online (http/https)? */
+export function isAllowedArticleUrl(raw, base = 'https://islam.nu.or.id', rootDomain = ROOT_DOMAIN) {
+  try {
+    const u = new URL(raw, base);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+    const host = u.hostname.toLowerCase();
+    return host === rootDomain || host.endsWith(`.${rootDomain}`);
+  } catch {
+    return false;
+  }
+}
 
 export function normalizeUrl(raw, base = 'https://islam.nu.or.id') {
   try {
@@ -39,6 +52,7 @@ export function normalizeUrl(raw, base = 'https://islam.nu.or.id') {
 export function articleSlug(raw, base) {
   const norm = normalizeUrl(raw, base);
   if (!norm) return null;
+  if (!isAllowedArticleUrl(norm, base)) return null;
   const u = new URL(norm);
   if (!ARTICLE_PATH.test(u.pathname)) return null;
   const seg = u.pathname.split('/').filter(Boolean).pop();
@@ -46,9 +60,23 @@ export function articleSlug(raw, base) {
   return seg;
 }
 
+/** Cari gambar/kategori di sekitar elemen listing (naik beberapa level). */
+function findNear($, el, selector, pick) {
+  let node = $(el);
+  for (let i = 0; i < 3 && node.length > 0; i++) {
+    const found = node.find(selector).first();
+    if (found.length > 0) {
+      const val = pick ? pick(found) : found.attr('src');
+      if (val) return val;
+    }
+    node = node.parent();
+  }
+  return null;
+}
+
 /**
  * Mem-parse halaman listing.
- * @returns {{ items: Array<{url:string,title:string,dateText:string|null}>, nextPage: string|null }}
+ * @returns {{ items: Array<{url:string,title:string,dateText:string|null,category:string|null,imageUrl:string|null}>, nextPage: string|null }}
  */
 export function parseListing(html, base = 'https://islam.nu.or.id') {
   const $ = cheerio.load(html || '');
@@ -69,10 +97,17 @@ export function parseListing(html, base = 'https://islam.nu.or.id') {
     if (!title) title = normalizeText($(el).find('img').attr('alt') || '');
     if (!title) title = normalizeText($(el).text());
 
-    const container = $(el).closest('div').parent();
-    const dateText = normalizeText(container.find('p').filter((__, p) => /WIB/i.test($(p).text())).first().text()) || null;
+    const dateText = findNear($, el, 'p', (n) => {
+      const t = normalizeText(n.text());
+      return /WIB/i.test(t) ? t : null;
+    });
 
-    items.push({ url, title, dateText });
+    const category = findNear($, el, 'a[href="/khutbah"], a[href$="/khutbah"]', (n) => normalizeText(n.text()));
+
+    const imgRaw = findNear($, el, 'img', (n) => n.attr('src'));
+    const imageUrl = imgRaw ? normalizeUrl(imgRaw, base) : null;
+
+    items.push({ url, title, dateText: dateText || null, category: category || null, imageUrl });
   });
 
   return { items, nextPage: findNextPage($, base) };
@@ -143,7 +178,9 @@ function extractByline($) {
  */
 export function parseArticle(html, url, base = 'https://islam.nu.or.id') {
   const $ = cheerio.load(html || '');
-  const canonical = normalizeUrl($('link[rel="canonical"]').attr('href') || url, base) || url;
+  const canonicalRaw = normalizeUrl($('link[rel="canonical"]').attr('href') || url, base) || url;
+  // canonical hanya diterima bila tetap di domain NU Online.
+  const canonical = isAllowedArticleUrl(canonicalRaw, base) ? canonicalRaw : normalizeUrl(url, base) || url;
 
   const title = normalizeText($(SELECTORS.articleTitle).first().text()) || normalizeText($('meta[property="og:title"]').attr('content') || '');
   const description =
@@ -159,6 +196,7 @@ export function parseArticle(html, url, base = 'https://islam.nu.or.id') {
   const { khutbah1, khutbah2, full } = splitKhutbahSections(blocks);
 
   const category = normalizeText($('a[href*="/khutbah"]').first().text()) || 'Khutbah';
+  const imageUrl = normalizeText($('meta[property="og:image"]').attr('content') || '') || null;
 
   return {
     title: title || null,
@@ -172,6 +210,7 @@ export function parseArticle(html, url, base = 'https://islam.nu.or.id') {
     content: full || null,
     khutbah_1: khutbah1,
     khutbah_2: khutbah2,
+    image_url: imageUrl,
     source: 'NU Online',
     blocks,
     _hasMarkers: Boolean(khutbah1 || khutbah2),

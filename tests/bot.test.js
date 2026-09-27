@@ -247,3 +247,136 @@ test('T-CB-01: callback data tidak dikenal/expired tidak crash', async () => {
   await assert.doesNotReject(() => bot.handleUpdate(callback('entah:apa')));
   await assert.doesNotReject(() => bot.handleUpdate(callback('srch:page:999')));
 });
+
+test('T-LATEST-01: /latest menampilkan artikel terbaru + tombol callback', async () => {
+  const { bot, calls } = await setup({
+    seed: [
+      { title: 'Terbaru Satu', url: 'https://x/l1', content: 'x', content_hash: 'l1', snippet: 'x', published_at: '2026-09-10T00:00:00.000Z' },
+      { title: 'Terbaru Dua', url: 'https://x/l2', content: 'x', content_hash: 'l2', snippet: 'x', published_at: '2026-09-12T00:00:00.000Z' },
+    ],
+  });
+  await bot.handleUpdate(privateMessage('/latest'));
+  const texts = allTexts(calls);
+  assert.ok(texts.some((t) => t.includes('KHUTBAH TERBARU')));
+  assert.ok(texts.some((t) => t.includes('Terbaru Dua')));
+  const kbCall = calls.find((c) => c.payload?.reply_markup?.inline_keyboard?.some((row) => row.some((b) => /^art:\d+$/.test(b.callback_data))));
+  assert.ok(kbCall, 'harus ada tombol callback art:<id>');
+});
+
+test('T-LATEST-02: /latest saat kosong memberi pesan aman', async () => {
+  const { bot, calls } = await setup();
+  await bot.handleUpdate(privateMessage('/latest'));
+  assert.ok(allTexts(calls).some((t) => /Belum ada artikel terbaru/i.test(t)));
+});
+
+test('T-UNKNOWN-01: perintah tidak dikenal direspons aman', async () => {
+  const { bot, calls } = await setup();
+  await bot.handleUpdate(privateMessage('/perintahtidakada'));
+  assert.ok(allTexts(calls).some((t) => /tidak dikenal/i.test(t)));
+});
+
+test('T-CB-ACK-01: callback query di-acknowledge', async () => {
+  const { bot, calls } = await setup();
+  await bot.handleUpdate(callback('menu:main'));
+  assert.ok(calls.some((c) => c.method === 'answerCallbackQuery'), 'answerCallbackQuery harus dipanggil');
+});
+
+test('T-OWNER-01: owner melihat tombol Admin, user biasa tidak', async () => {
+  const owner = await setup();
+  await owner.bot.handleUpdate(privateMessage('/start', 999));
+  const ownerKb = owner.calls.find((c) => c.method === 'sendMessage')?.payload?.reply_markup?.inline_keyboard || [];
+  assert.ok(ownerKb.flat().some((b) => b.callback_data === 'menu:admin'), 'owner harus punya menu admin');
+
+  const normal = await setup();
+  await normal.bot.handleUpdate(privateMessage('/start', 12345));
+  const normalKb = normal.calls.find((c) => c.method === 'sendMessage')?.payload?.reply_markup?.inline_keyboard || [];
+  assert.ok(!normalKb.flat().some((b) => b.callback_data === 'menu:admin'), 'user biasa tidak boleh punya menu admin');
+});
+
+test('T-ERR-02: database error saat buka artikel ditangani', async () => {
+  const { bot, calls, repos } = await setup();
+  repos.articles.findById = async () => {
+    throw new Error('db down');
+  };
+  await bot.handleUpdate(callback('art:1'));
+  assert.ok(allTexts(calls).some((t) => /gangguan/i.test(t)));
+});
+
+test('T-ART-05: tombol Kembali ada & kembali ke menu', async () => {
+  const { bot, calls, repos } = await setup();
+  const art = (await repos.articles.upsert({ title: 'A', url: 'https://x/back', content: 'x', content_hash: 'back', snippet: 'x' })).article;
+  await bot.handleUpdate(callback(`art:${art.id}`));
+  const kb = calls.filter((c) => c.method === 'sendMessage').at(-1)?.payload?.reply_markup?.inline_keyboard || [];
+  assert.ok(kb.flat().some((b) => b.callback_data === 'art:back'), 'tombol Kembali harus ada');
+  calls.length = 0;
+  await bot.handleUpdate(callback('art:back'));
+  assert.ok(allTexts(calls).some((t) => t.includes('BOT KHUTBAH JUMAT')));
+});
+
+test('T-FAV-04: hapus favorit', async () => {
+  const { bot, calls, repos } = await setup();
+  const art = (await repos.articles.upsert({ title: 'F', url: 'https://x/fd', content: 'x', content_hash: 'fd', snippet: 'x' })).article;
+  await bot.handleUpdate(callback(`fav:add:${art.id}`));
+  calls.length = 0;
+  await bot.handleUpdate(callback(`fav:del:${art.id}`));
+  assert.ok(allTexts(calls).some((t) => /dihapus dari favorit/i.test(t)));
+  const user = await repos.users.findByTelegramId(1);
+  assert.equal(await repos.favorites.count(user.id), 0);
+});
+
+test('T-FAV-05: artikel favorit menampilkan tombol hapus', async () => {
+  const { bot, calls, repos } = await setup();
+  const user = await repos.users.upsertByTelegramId({ telegram_id: 1, first_name: 'T' });
+  const art = (await repos.articles.upsert({ title: 'Fav2', url: 'https://x/fv', content: 'x', content_hash: 'fv', snippet: 'x' })).article;
+  await repos.favorites.add(user.id, art.id);
+  await bot.handleUpdate(callback(`art:${art.id}`));
+  const kb = calls.filter((c) => c.method === 'sendMessage').at(-1)?.payload?.reply_markup?.inline_keyboard || [];
+  assert.ok(kb.flat().some((b) => b.callback_data === `fav:del:${art.id}`));
+});
+
+test('T-SRCH-03: pagination callback bekerja', async () => {
+  const seed = [];
+  for (let i = 1; i <= 10; i++) {
+    seed.push({
+      title: `Sabar ${i}`,
+      url: `https://x/s${i}`,
+      content: 'sabar',
+      content_hash: `s${i}`,
+      snippet: 'sabar',
+      published_at: `2026-09-${String(i).padStart(2, '0')}T00:00:00.000Z`,
+    });
+  }
+  const { bot, calls } = await setup({ seed });
+  await bot.handleUpdate(privateMessage('sabar'));
+  calls.length = 0;
+  await bot.handleUpdate(callback('srch:page:1'));
+  assert.ok(allTexts(calls).some((t) => /HASIL PENCARIAN/.test(t)));
+});
+
+test('T-ADM-05: /status untuk admin', async () => {
+  const { bot, calls } = await setup();
+  await bot.handleUpdate(privateMessage('/status', 999));
+  assert.ok(allTexts(calls).some((t) => t.includes('STATUS BOT')));
+});
+
+test('T-ADM-06: /stat untuk admin', async () => {
+  const { bot, calls } = await setup();
+  await bot.handleUpdate(privateMessage('/stat', 999));
+  assert.ok(allTexts(calls).some((t) => t.includes('STATISTIK')));
+});
+
+test('T-ADM-07: /status user biasa ditolak', async () => {
+  const { bot, calls } = await setup();
+  await bot.handleUpdate(privateMessage('/status', 12345));
+  assert.ok(allTexts(calls).some((t) => /tidak memiliki akses/i.test(t)));
+});
+
+test('T-ADM-08: /sync user biasa ditolak, admin diizinkan', async () => {
+  const normal = await setup();
+  await normal.bot.handleUpdate(privateMessage('/sync', 12345));
+  assert.ok(allTexts(normal.calls).some((t) => /tidak memiliki akses/i.test(t)));
+
+  const admin = await setup();
+  await admin.bot.handleUpdate(privateMessage('/sync', 999));
+  assert.ok(allTexts(admin.calls).some((t) => /Sinkronisasi/i.test(t)));
+});

@@ -37,11 +37,13 @@ src/
 │   └── session.js      # state per-user (in-memory)
 ├── search/             # normalisasi + query pencarian
 ├── scraper/            # discovery, fetch client, parser, cleaner, sync
-├── database/           # client supabase + repository + schema.sql + memory store
+├── database/           # client supabase + repository + memory store + migrate/verify
 ├── pdf/                # generator + helper Arab (shaping/bidi)
 ├── scheduler/          # node-cron
 └── utils/              # splitMessage, html, slug, sanitizeFilename, errors
 ```
+
+`supabase/migrations/001_initial_schema.sql` = schema kanonik (reproducible).
 
 Prinsip: inisialisasi komponen **dipisah** dari efek samping agar dapat dites
 tanpa token/kredensial. `index.js` hanya yang menjalankan efek samping
@@ -93,14 +95,19 @@ Artikel (DB) → arabic shaping + bidi → pdfkit A4
 ## 5. Database
 
 Tabel: `articles`, `users`, `favorites`, `history`, `search_logs`, `sync_logs`.
-Lihat `src/database/schema.sql`. Migrasi idempoten + indeks + unique constraint
-+ kolom `status`/`content_hash`.
+Schema kanonik: `supabase/migrations/001_initial_schema.sql` (idempoten; indeks,
+unique constraint, FK, check, kolom `status`/`content_hash`/`image_url`/`last_synced_at`).
+
+Penerapan memakai koneksi PostgreSQL langsung (`DATABASE_URL`, `npm run migrate -- --apply`).
+`SUPABASE_SECRET_KEY` (Data API) **tidak** dapat menjalankan DDL. Verifikasi:
+`npm run db:verify`.
 
 Akses Supabase:
-- Server tepercaya (Termux) memakai kredensial dari `.env` lokal, tidak di-commit.
-- Bila memakai `service_role`, hanya untuk proses server; dokumentasi di README.
-- RLS dipertimbangkan; kebijakan detail menunggu keputusan pemilik (lihat
-  `BUILD_PROGRESS.md` bagian keputusan).
+- Server tepercaya (Termux) memakai **Secret key** (`SUPABASE_SECRET_KEY`) dari
+  `.env` lokal; tidak di-commit.
+- Secret key hanya untuk proses server; jangan dipakai di klien publik.
+- RLS aktif di semua tabel tanpa policy publik (least privilege); peran `anon`
+  bukan nama API key.
 
 ## 6. Risiko utama
 
@@ -109,6 +116,6 @@ Akses Supabase:
 | Rendering Arab (shaping/bidi/harakat) di PDF | Library shaping + bidi, uji ekstraksi teks & visual halaman |
 | Perubahan markup NU Online | Parser berbasis fixture + tes perubahan markup; selector terpusat |
 | Reproduksi konten pihak ketiga | Mode aman default, feature flag izin, atribusi + tautan |
-| Supabase RLS/least privilege | Dokumentasi + keputusan pemilik; service-role server-only |
+| Supabase RLS/least privilege | Secret key server-only; peran `anon` hanya untuk metadata publik |
 | Android membunuh proses | Termux:Boot + wake-lock + panduan pemulihan (diuji perangkat = NOT_VERIFIED) |
 | Perbedaan Linux vs Termux | Hindari native dep; audit kompatibilitas; `npm ci` di Termux |

@@ -3,6 +3,7 @@
  * CLI sinkronisasi manual: `npm run sync`
  */
 import { loadConfig } from '../config.js';
+import { loadEnv } from '../loadEnv.js';
 import { createLogger } from '../logger.js';
 import { createDatabase } from '../database/index.js';
 import { createFetchClient } from './fetchClient.js';
@@ -11,10 +12,11 @@ import { createNuOnlineScraper } from './nuonline.js';
 import { createSyncService } from './sync.js';
 
 async function main() {
+  loadEnv();
   const config = loadConfig(process.env);
   const logger = createLogger({
     level: config.logging.level,
-    secrets: [config.telegram.token, config.supabase.serviceRoleKey, config.supabase.anonKey],
+    secrets: [config.telegram.token, config.supabase.secretKey],
   });
 
   const repos = createDatabase(config, { logger });

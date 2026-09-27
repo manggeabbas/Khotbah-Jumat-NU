@@ -1,88 +1,126 @@
 #!/usr/bin/env node
 /**
- * CLI migrasi.
+ * CLI migrasi database.
  *
- *   npm run migrate            -> tampilkan SQL (tinjau dulu)
- *   npm run migrate -- --apply -> terapkan ke database (butuh DATABASE_URL)
+ *   npm run migrate            -> tampilkan daftar migration + SQL (tinjau dulu)
+ *   npm run migrate -- --apply -> terapkan semua migration ke database
  *
- * Penerapan memakai `psql` (PostgreSQL client) bila tersedia. Tidak ada
- * dependency native tambahan yang harus dipasang di project.
+ * Penerapan memakai koneksi PostgreSQL langsung lewat `DATABASE_URL` (package
+ * `pg`). PENTING: `SUPABASE_SECRET_KEY` adalah kunci Data API (PostgREST) dan
+ * TIDAK dapat menjalankan DDL — jadi migration butuh `DATABASE_URL`.
+ *
+ * Tidak pernah mencetak nilai rahasia.
  */
-import { readFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from '../config.js';
-import { ConfigError } from '../utils/errors.js';
+import { join } from 'node:path';
+import pg from 'pg';
+import { loadEnv } from '../loadEnv.js';
 
-const schemaPath = fileURLToPath(new URL('./schema.sql', import.meta.url));
+const MIGRATIONS_DIR = fileURLToPath(new URL('../../supabase/migrations/', import.meta.url));
+
+export function listMigrations() {
+  return readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+}
+
+export function readMigration(name) {
+  return readFileSync(join(MIGRATIONS_DIR, name), 'utf8');
+}
+
+/**
+ * Menerapkan migration secara berurutan dalam transaksi + advisory lock.
+ * @param {{ databaseUrl: string, logger?: object, files?: string[] }} opts
+ * @returns {Promise<string[]>} daftar migration yang diterapkan
+ */
+export async function applyMigrations({ databaseUrl, logger, files = listMigrations() }) {
+  if (!databaseUrl) throw new Error('DATABASE_URL wajib untuk menerapkan migration.');
+  const client = new pg.Client({
+    connectionString: databaseUrl,
+    ssl: { rejectUnauthorized: false },
+  });
+  await client.connect();
+  const applied = [];
+  try {
+    for (const name of files) {
+      const sql = readMigration(name);
+      await client.query('begin');
+      try {
+        await client.query("select pg_advisory_xact_lock(hashtext('khutbah_bot_migrations'))");
+        await client.query(sql);
+        await client.query('commit');
+        applied.push(name);
+        logger?.info?.(`[MIGRATE] diterapkan: ${name}`);
+      } catch (err) {
+        await client.query('rollback');
+        throw err;
+      }
+    }
+  } finally {
+    await client.end();
+  }
+  return applied;
+}
 
 function printHeader(text) {
   process.stdout.write(`\n${text}\n${'='.repeat(text.length)}\n`);
 }
 
 function main() {
-  const args = process.argv.slice(2);
-  const apply = args.includes('--apply');
+  loadEnv();
+  const apply = process.argv.includes('--apply');
+  const files = listMigrations();
 
-  let sql;
-  try {
-    sql = readFileSync(schemaPath, 'utf8');
-  } catch (err) {
-    process.stderr.write(`Gagal membaca schema.sql: ${err.message}\n`);
+  if (files.length === 0) {
+    process.stderr.write('Tidak ada file migration di supabase/migrations/.\n');
     process.exit(1);
+    return;
   }
 
   if (!apply) {
-    printHeader('SQL MIGRASI (tinjau, lalu jalankan dengan --apply)');
-    process.stdout.write(sql + '\n');
+    printHeader('MIGRATIONS (tinjau, lalu jalankan dengan --apply)');
+    for (const name of files) process.stdout.write(`- ${name}\n`);
+    for (const name of files) {
+      printHeader(name);
+      process.stdout.write(readMigration(name) + '\n');
+    }
     printHeader('CARA MENERAPKAN');
     process.stdout.write(
-      'Opsi 1 (disarankan): buka Supabase Dashboard > SQL Editor, tempel isi schema.sql, Run.\n' +
-        'Opsi 2: set DATABASE_URL (connection string Postgres) lalu: npm run migrate -- --apply\n\n',
+      'Butuh koneksi PostgreSQL langsung (DDL tidak bisa lewat SUPABASE_SECRET_KEY).\n\n' +
+        '  1. Supabase Dashboard > Project Settings > Database > Connection string\n' +
+        '  2. Tambahkan ke .env:  DATABASE_URL="postgresql://..."\n' +
+        '  3. Jalankan:           npm run migrate -- --apply\n\n' +
+        'Alternatif tanpa DATABASE_URL: jalankan isi SQL di atas lewat klien Postgres mana pun.\n',
     );
     return;
   }
 
-  // Mode apply: butuh DATABASE_URL + psql.
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
   if (!databaseUrl) {
     process.stderr.write(
-      'DATABASE_URL belum diset. Penerapan migrasi memerlukan connection string Postgres.\n' +
-        'Ambil dari Supabase > Project Settings > Database > Connection string.\n',
+      'DATABASE_URL belum diset — migration tidak dapat diterapkan.\n' +
+        'SUPABASE_SECRET_KEY (Data API) tidak dapat menjalankan DDL.\n' +
+        'Tambahkan DATABASE_URL (Connection string Postgres) ke .env lalu ulangi.\n',
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
-  const psql = spawnSync('psql', ['--version'], { encoding: 'utf8' });
-  if (psql.error || psql.status !== 0) {
-    process.stderr.write(
-      'Perintah `psql` tidak tersedia. Pasang PostgreSQL client atau terapkan SQL via Supabase SQL Editor.\n',
-    );
-    process.exit(1);
-  }
-
-  printHeader('MENERAPKAN MIGRASI');
-  const result = spawnSync('psql', [databaseUrl, '-v', 'ON_ERROR_STOP=1', '-f', schemaPath], {
-    stdio: 'inherit',
-  });
-  if (result.status !== 0) {
-    process.stderr.write('Migrasi gagal. Periksa output di atas.\n');
-    process.exit(result.status || 1);
-  }
-  printHeader('MIGRASI SELESAI');
-  process.stdout.write('Skema berhasil diterapkan.\n');
+  printHeader('MENERAPKAN MIGRATION');
+  applyMigrations({ databaseUrl })
+    .then((applied) => {
+      printHeader('SELESAI');
+      process.stdout.write(`Diterapkan: ${applied.join(', ')}\n`);
+    })
+    .catch((error) => {
+      // Hanya pesan (tanpa connection string / rahasia).
+      process.stderr.write(`[MIGRATE] Gagal: ${error?.message || error}\n`);
+      process.exitCode = 1;
+    });
 }
 
-// Sengaja tidak memanggil loadConfig di mode print agar bisa ditinjau tanpa .env.
-try {
-  // Validasi .env seperlunya (tidak wajib untuk mode print).
-  if (process.argv.includes('--apply')) loadConfig(process.env);
-} catch (err) {
-  if (err instanceof ConfigError) {
-    process.stderr.write(`${err.message}\n`);
-    process.exit(1);
-  }
-  throw err;
+// Hanya jalankan main bila dipanggil langsung (bukan saat di-import tes).
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main();
 }
-
-main();

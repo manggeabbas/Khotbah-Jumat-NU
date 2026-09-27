@@ -21,6 +21,7 @@ export function createRepositories(store) {
       const url = input.url;
       if (!url) throw new Error('articles.upsert: url wajib ada');
       const existing = await store.selectOne('articles', { url });
+      const nowIso = new Date().toISOString();
       const patch = {
         title: input.title,
         slug: input.slug || slugify(input.title),
@@ -34,9 +35,11 @@ export function createRepositories(store) {
         content: input.content ?? null,
         khutbah_1: input.khutbah_1 ?? null,
         khutbah_2: input.khutbah_2 ?? null,
+        image_url: input.image_url ?? null,
         source: input.source || 'NU Online',
         content_hash: input.content_hash ?? null,
         status: input.status || 'active',
+        last_synced_at: input.last_synced_at ?? nowIso,
       };
 
       if (!existing) {
@@ -47,7 +50,9 @@ export function createRepositories(store) {
         const rows = await store.update('articles', { id: existing.id }, patch);
         return { article: rows[0] ?? existing, inserted: false, updated: true };
       }
-      return { article: existing, inserted: false, updated: false };
+      // Isi tidak berubah: tetap catat waktu sinkronisasi terakhir.
+      const rows = await store.update('articles', { id: existing.id }, { last_synced_at: patch.last_synced_at });
+      return { article: rows[0] ?? existing, inserted: false, updated: false };
     },
 
     async updateStatus(id, status) {

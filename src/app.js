@@ -23,7 +23,7 @@ export async function createApp(config, deps = {}) {
     deps.logger ||
     createLogger({
       level: config.logging?.level || 'info',
-      secrets: [config.telegram?.token, config.supabase?.serviceRoleKey, config.supabase?.anonKey],
+      secrets: [config.telegram?.token, config.supabase?.secretKey],
     });
 
   // --- Database ---

@@ -30,6 +30,19 @@ export const SOURCE = Object.freeze({
 
 const VALID_LOG_LEVELS = new Set(['debug', 'info', 'warn', 'error', 'silent']);
 
+/**
+ * Nama-nama environment variable yang dibaca project (terpusat).
+ * Rahasia: telegramToken, supabaseSecretKey.
+ * Non-rahasia: telegramUserId (ID owner/admin, BUKAN credential).
+ */
+export const ENV_KEYS = Object.freeze({
+  telegramToken: 'TELEGRAM_BOT_TOKEN',
+  telegramTokenLegacy: 'BOT_TOKEN',
+  telegramUserId: 'TELEGRAM_USER_ID',
+  supabaseUrl: 'SUPABASE_URL',
+  supabaseSecretKey: 'SUPABASE_SECRET_KEY',
+});
+
 function parseIntStrict(raw, fallback, { min = 0, name } = {}) {
   if (raw === undefined || raw === null || String(raw).trim() === '') return fallback;
   const n = Number.parseInt(String(raw).trim(), 10);
@@ -58,6 +71,16 @@ function parseAdminIds(raw) {
     .filter(Boolean);
 }
 
+/** ID Telegram numerik (hanya angka, panjang wajar). */
+export function isValidTelegramId(id) {
+  return /^\d{1,15}$/.test(String(id || '').trim());
+}
+
+/** Ambil daftar ID Telegram unik (boleh dipisah koma) dari sebuah variabel. */
+function parseTelegramIds(raw) {
+  return [...new Set(parseAdminIds(raw))];
+}
+
 /**
  * @param {NodeJS.ProcessEnv} env
  * @param {{ requireSecrets?: boolean }} [opts]
@@ -69,25 +92,34 @@ export function loadConfig(env = process.env, { requireSecrets = false } = {}) {
 
   const errors = [];
 
-  const token = get('BOT_TOKEN');
-  const supabaseUrl = get('SUPABASE_URL');
-  const serviceRoleKey = get('SUPABASE_SERVICE_ROLE_KEY');
-  const anonKey = get('SUPABASE_ANON_KEY');
-  const supabaseKey = serviceRoleKey || anonKey;
-  const supabaseKeyType = serviceRoleKey ? 'service_role' : anonKey ? 'anon' : null;
+  // TELEGRAM_BOT_TOKEN adalah nama utama; BOT_TOKEN diterima sebagai alias
+  // lama demi kompatibilitas mundur (lihat PRD §32). Nilainya RAHASIA.
+  const token = get(ENV_KEYS.telegramToken) || get(ENV_KEYS.telegramTokenLegacy);
 
+  // TELEGRAM_USER_ID = ID Telegram owner/admin (NON-rahasia, bukan credential).
+  // Satu-satunya sumber ID admin (tidak ada variabel alias).
+  const ownerIdRaw = get(ENV_KEYS.telegramUserId);
+  const adminIds = parseTelegramIds(ownerIdRaw);
+
+  const supabaseUrl = get(ENV_KEYS.supabaseUrl);
+  // Model API key Supabase terbaru: satu Secret key untuk server (menggantikan
+  // service_role/anon). Nilainya RAHASIA; jangan dipakai di klien publik.
+  const supabaseSecretKey = get(ENV_KEYS.supabaseSecretKey);
+
+  // Validasi keberadaan variabel WAJIB. Pesan hanya menyebut NAMA variabel,
+  // tidak pernah nilainya.
   if (requireSecrets) {
-    if (!token) errors.push('BOT_TOKEN belum diisi (dapatkan dari @BotFather).');
-    if (!supabaseUrl) errors.push('SUPABASE_URL belum diisi.');
-    if (!supabaseKey) errors.push('SUPABASE_SERVICE_ROLE_KEY atau SUPABASE_ANON_KEY belum diisi.');
+    if (!token) errors.push(`${ENV_KEYS.telegramToken} belum diisi (dapatkan dari @BotFather).`);
+    if (!supabaseUrl) errors.push(`${ENV_KEYS.supabaseUrl} belum diisi.`);
+    if (!supabaseSecretKey) errors.push(`${ENV_KEYS.supabaseSecretKey} belum diisi.`);
+    if (adminIds.length === 0) {
+      errors.push(`${ENV_KEYS.telegramUserId} belum diisi (ID Telegram owner/admin).`);
+    }
   }
 
-  const required = (name, value) => {
-    if (!value) errors.push(`${name} belum diisi.`);
-  };
-  // Hanya wajib bila kredensial diminta; tetap terhitung agar pesan jelas.
-  if (requireSecrets) {
-    required('ADMIN_TELEGRAM_ID', get('ADMIN_TELEGRAM_ID'));
+  // Validasi format: ID Telegram harus numerik (divalidasi bila diisi).
+  if (ownerIdRaw && !adminIds.every(isValidTelegramId)) {
+    errors.push(`${ENV_KEYS.telegramUserId} harus berupa ID Telegram numerik (hanya angka).`);
   }
 
   const num = (key, opts) => {
@@ -120,12 +152,12 @@ export function loadConfig(env = process.env, { requireSecrets = false } = {}) {
     telegram: { token },
     supabase: {
       url: supabaseUrl,
-      serviceRoleKey,
-      anonKey,
-      key: supabaseKey,
-      keyType: supabaseKeyType,
+      secretKey: supabaseSecretKey,
     },
-    admin: { telegramIds: parseAdminIds(get('ADMIN_TELEGRAM_ID')) },
+    admin: {
+      ownerId: adminIds[0] || null,
+      telegramIds: adminIds,
+    },
     search: { maxResults: num('MAX_SEARCH_RESULTS', { min: 1 }) },
     history: { max: num('MAX_HISTORY', { min: 1 }) },
     content: {
@@ -160,9 +192,11 @@ export function loadConfig(env = process.env, { requireSecrets = false } = {}) {
  */
 export function findConfigProblems(config) {
   const problems = [];
-  if (!config?.telegram?.token) problems.push('BOT_TOKEN belum diisi.');
-  if (!config?.supabase?.url) problems.push('SUPABASE_URL belum diisi.');
-  if (!config?.supabase?.key) problems.push('SUPABASE_SERVICE_ROLE_KEY atau SUPABASE_ANON_KEY belum diisi.');
-  if (!config?.admin?.telegramIds?.length) problems.push('ADMIN_TELEGRAM_ID belum diisi.');
+  if (!config?.telegram?.token) problems.push(`${ENV_KEYS.telegramToken} belum diisi.`);
+  if (!config?.supabase?.url) problems.push(`${ENV_KEYS.supabaseUrl} belum diisi.`);
+  if (!config?.supabase?.secretKey) problems.push(`${ENV_KEYS.supabaseSecretKey} belum diisi.`);
+  if (!config?.admin?.telegramIds?.length) {
+    problems.push(`${ENV_KEYS.telegramUserId} belum diisi (ID Telegram owner/admin).`);
+  }
   return problems;
 }

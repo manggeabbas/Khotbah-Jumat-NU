@@ -44,12 +44,16 @@ export function searchResultsKeyboard({ items, page, hasMore }) {
   return { inline_keyboard: rows };
 }
 
-export function articleActionsKeyboard({ articleId, canExportPdf }) {
-  const rows = [];
-  if (canExportPdf) {
-    rows.push([{ text: '📄 Ekspor PDF', callback_data: `pdf:${articleId}` }]);
-  }
-  rows.push([{ text: '🔖 Simpan ke Favorit', callback_data: `fav:add:${articleId}` }]);
+export function articleActionsKeyboard({ articleId, canExportPdf, isFavorite = false }) {
+  const rows = [[{ text: '⬅️ Kembali', callback_data: 'art:back' }]];
+  const actions = [];
+  if (canExportPdf) actions.push({ text: '📄 Ekspor PDF', callback_data: `pdf:${articleId}` });
+  actions.push(
+    isFavorite
+      ? { text: '🗑️ Hapus Favorit', callback_data: `fav:del:${articleId}` }
+      : { text: '⭐ Favorit', callback_data: `fav:add:${articleId}` },
+  );
+  rows.push(actions);
   rows.push([
     { text: '🔄 Khutbah Lain', callback_data: 'menu:latest' },
     { text: '🔎 Cari Tema Baru', callback_data: 'menu:search' },
@@ -80,7 +84,8 @@ export function listKeyboard({
 export function adminKeyboard() {
   return {
     inline_keyboard: [
-      [{ text: '📊 Statistik', callback_data: 'admin:stats' }],
+      [{ text: '📊 Status', callback_data: 'admin:status' }],
+      [{ text: '📈 Statistik', callback_data: 'admin:stats' }],
       [{ text: '🔄 Sinkronisasi Sekarang', callback_data: 'admin:sync' }],
       [{ text: '📰 Artikel Terbaru', callback_data: 'admin:articles' }],
       [{ text: '👥 Pengguna', callback_data: 'admin:users' }],

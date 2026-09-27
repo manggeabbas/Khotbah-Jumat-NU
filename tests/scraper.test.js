@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseListing, parseArticle, normalizeUrl, parseIndonesianDate } from '../src/scraper/parser.js';
+import { parseListing, parseArticle, normalizeUrl, parseIndonesianDate, isAllowedArticleUrl, articleSlug } from '../src/scraper/parser.js';
 import { cleanHtmlBody, splitKhutbahSections } from '../src/scraper/cleaner.js';
 import { parseRobots, isAllowed, selectRules } from '../src/scraper/robots.js';
 import { createFetchClient } from '../src/scraper/fetchClient.js';
@@ -10,6 +10,7 @@ import { buildArticleRecord, createSyncService } from '../src/scraper/sync.js';
 import { createNuOnlineScraper } from '../src/scraper/nuonline.js';
 import { createMemoryStore } from '../src/database/memoryStore.js';
 import { createRepositories } from '../src/database/repositories.js';
+import { ScraperError } from '../src/utils/errors.js';
 
 const fixture = (name) => readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf8');
 const BASE = 'https://islam.nu.or.id';
@@ -32,6 +33,7 @@ test('P-ART-01: metadata artikel', () => {
   assert.equal(a.description, 'Khutbah Jumat tentang kesabaran menghadapi ujian hidup (fixture).');
   assert.equal(a.source, 'NU Online');
   assert.equal(a.published_at, '2026-09-24T07:00:00.000Z'); // 14:00 WIB = 07:00 UTC
+  assert.equal(a.image_url, 'https://storage.example.test/img/abc.webp');
 });
 
 test('P-ART-02: body bersih tanpa nav/iklan/script', () => {
@@ -257,4 +259,110 @@ test('S-SYN-05: discover dedupe & pagination (mock fetch)', async () => {
   const scraper = createNuOnlineScraper({ fetchClient, config: makeConfig(), logger: null });
   const items = await scraper.discover({ maxPages: 2 });
   assert.equal(items.length, 3);
+});
+
+test('P-LIST-02: listing mengekstrak kategori, gambar, dan tanggal', () => {
+  const { items } = parseListing(fixture('listing.html'), BASE);
+  assert.equal(items[0].category, 'Khutbah');
+  assert.equal(items[0].imageUrl, 'https://example.test/a.webp');
+  assert.match(items[0].dateText, /WIB/);
+});
+
+test('P-URL-01: host guard (hanya domain NU Online)', () => {
+  assert.equal(isAllowedArticleUrl(`${BASE}/khutbah/x`), true);
+  assert.equal(isAllowedArticleUrl('https://nu.or.id/khutbah/x'), true);
+  assert.equal(isAllowedArticleUrl('https://evil-nu.or.id/khutbah/x'), false);
+  assert.equal(isAllowedArticleUrl('https://example.com/khutbah/x'), false);
+  assert.equal(isAllowedArticleUrl('ftp://islam.nu.or.id/khutbah/x'), false);
+  assert.equal(articleSlug('https://example.com/khutbah/x', BASE), null);
+});
+
+test('P-LIST-03: tautan di luar domain NU Online diabaikan', () => {
+  const html = `<body>
+    <a href="https://example.com/khutbah/palsu-XYZ"><h2>Palsu</h2></a>
+    <a href="/khutbah/khutbah-asli-ABC12"><h2>Asli</h2></a>
+  </body>`;
+  const { items } = parseListing(html, BASE);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].title, 'Asli');
+});
+
+test('P-ART-08: canonical di luar domain -> fallback ke URL input', () => {
+  const html = `<html><head>
+    <link rel="canonical" href="https://example.com/khutbah/palsu" />
+    <meta property="og:title" content="Judul" />
+  </head><body><h1>Judul</h1><div id="detail-content"><p>${'isi '.repeat(80)}</p></div></body></html>`;
+  const a = parseArticle(html, `${BASE}/khutbah/khutbah-asli-ABC12`, BASE);
+  assert.equal(a.url, `${BASE}/khutbah/khutbah-asli-ABC12`);
+});
+
+test('P-ART-09: kategori & excerpt terparsing', () => {
+  const a = parseArticle(fixture('article.html'), `${BASE}/khutbah/x`, BASE);
+  assert.equal(a.category, 'Khutbah');
+  assert.match(a.description, /kesabaran/i);
+});
+
+test('P-INVALID-01: URL tidak valid -> tidak disimpan (null)', () => {
+  const cfg = { content: { fullContentEnabled: false, snippetMaxLength: 400 } };
+  const rec = buildArticleRecord(
+    { title: 'X', url: 'https://example.com/khutbah/x', content: 'isi '.repeat(100) },
+    cfg,
+  );
+  assert.equal(rec, null);
+});
+
+test('P-INVALID-02: judul kosong (URL valid) -> status parse_failed', () => {
+  const cfg = { content: { fullContentEnabled: false, snippetMaxLength: 400 } };
+  const rec = buildArticleRecord(
+    { title: null, url: `${BASE}/khutbah/khutbah-tanpa-judul-ABC12`, content: 'isi '.repeat(100) },
+    cfg,
+  );
+  assert.equal(rec.status, 'parse_failed');
+});
+
+test('F-TIMEOUT-01: timeout membatalkan permintaan', async () => {
+  const fetchImpl = (url, opts) =>
+    new Promise((_, reject) => {
+      opts.signal.addEventListener('abort', () => {
+        const err = new Error('aborted');
+        err.name = 'AbortError';
+        reject(err);
+      });
+    });
+  const client = createFetchClient({
+    fetchImpl,
+    timeoutMs: 40,
+    requestDelayMs: 0,
+    maxRetries: 0,
+    sleepImpl: async () => {},
+  });
+  await assert.rejects(() => client.getText('https://islam.nu.or.id/khutbah/x'), ScraperError);
+});
+
+test('S-SYN-06: error per-artikel tercatat di sync_logs.error_message', async () => {
+  const repos = createRepositories(createMemoryStore());
+  const scraper = {
+    async discover() {
+      return [{ url: `${BASE}/khutbah/ok-1` }, { url: `${BASE}/khutbah/gagal-1` }];
+    },
+    async fetchArticle(url) {
+      if (url.endsWith('gagal-1')) throw new Error('gagal mengambil');
+      return parseArticle(fixture('article.html'), url, BASE);
+    },
+  };
+  const sync = createSyncService({ repos, config: makeConfig(), scraper });
+  const r = await sync.run();
+  assert.equal(r.stats.failed, 1);
+  const last = await repos.syncLogs.last();
+  assert.match(last.error_message, /gagal-1/);
+});
+
+test('S-SYN-07: canonical URL sama -> tidak duplikat', async () => {
+  const repos = createRepositories(createMemoryStore());
+  const parsed = parseArticle(fixture('article.html'), `${BASE}/khutbah/khutbah-jumat-sabar-dalam-ujian-ABC12`, BASE);
+  const scraper = fakeScraper([parsed]);
+  const sync = createSyncService({ repos, config: makeConfig(), scraper });
+  await sync.run();
+  await sync.run();
+  assert.equal(await repos.articles.count(), 1);
 });

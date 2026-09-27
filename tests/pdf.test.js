@@ -124,3 +124,20 @@ test('F-PDF-05: cleanup menghapus file sementara', async () => {
 test('F-PDF-06: test visual halaman sampel', (t) => {
   t.skip('NOT_VERIFIED: inspeksi visual manual belum dilakukan');
 });
+
+test('F-PDF-07: kategori tampil & artikel kosong tidak crash', async () => {
+  const svc = service();
+  const { path: file } = await svc.generate({
+    title: 'Artikel Kosong',
+    category: 'Khutbah',
+    content: null,
+    url: 'https://islam.nu.or.id/khutbah/x',
+  });
+  assert.ok(fs.existsSync(file));
+  assert.ok(fs.statSync(file).size > 300);
+  if (HAS_PDFTOTEXT) {
+    const text = extractText(file);
+    assert.match(text, /Kategori: Khutbah/);
+  }
+  await svc.cleanup(file);
+});

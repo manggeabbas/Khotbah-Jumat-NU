@@ -35,10 +35,21 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | P-ART-05 | scraper | halaman tidak lengkap → status parse_failed | PASS |
 | P-ART-06 | scraper | perubahan markup → tidak crash, gagal validasi | PASS |
 | P-ART-07 | scraper | dedup URL | PASS |
+| P-ART-08 | scraper | canonical di luar domain → fallback URL input | PASS |
+| P-ART-09 | scraper | kategori & excerpt terparsing | PASS |
+| P-LIST-02 | scraper | listing ekstrak kategori, gambar, tanggal | PASS |
+| P-LIST-03 | scraper | tautan luar domain NU Online diabaikan | PASS |
+| P-URL-01 | scraper | host guard (hanya domain NU Online) | PASS |
+| P-INVALID-01 | validator | URL tidak valid → tidak disimpan | PASS |
+| P-INVALID-02 | validator | judul kosong (URL valid) → parse_failed | PASS |
 | P-ROB-01 | robots | parse & isAllowed | PASS |
 | P-FETCH-01 | fetchClient | retry 500, no-retry 403/404 | PASS |
+| F-TIMEOUT-01 | fetchClient | timeout membatalkan permintaan | PASS |
 | S-SYN-01..05 | sync | idempoten, lock, robots, failed, discover | PASS |
-| P-LIVE-01 | scraper | live NU Online (metadata saja) | PASS (2026-09-27, 40 item) |
+| S-SYN-06 | sync | error per-artikel tercatat di sync_logs | PASS |
+| S-SYN-07 | sync | canonical sama → tidak duplikat | PASS |
+| P-LIVE-01 | scraper | live NU Online (metadata) | PASS (2026-09-27, 40 item) |
+| P-LIVE-02 | scraper | live smoke: listing+2 artikel+upsert+cleanup | PASS (10/10, DB bersih) |
 
 ## 3. Database (mock/in-memory)
 
@@ -48,12 +59,17 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | D-ART-02 | articles | upsert update by source_url | PASS |
 | D-ART-03 | articles | hash konten mendeteksi perubahan | PASS |
 | D-ART-04 | articles | pagination hasil | PASS |
+| D-ART-05 | articles | image_url & last_synced_at tersimpan | PASS |
+| D-ART-06 | articles | last_synced_at diperbarui walau konten sama | PASS |
 | D-USR-01 | users | upsert by telegram_id unik | PASS |
 | D-FAV-01 | favorites | unique(user_id, article_id) | PASS |
 | D-HIS-01 | history | batas 50 terakhir | PASS |
 | D-LOG-01 | search_logs | catat query + result_count | PASS |
 | D-LOG-02 | sync_logs | catat hasil sinkronisasi | PASS |
-| D-SQL-01 | schema | migrasi idempoten (statis) | PASS |
+| D-SQL-01 | schema | migration idempoten: tabel/indeks/FK/check/RLS | PASS |
+| D-MIG-01 | migrate | listMigrations menemukan 001 | PASS |
+| D-MIG-02 | migrate | readMigration mengembalikan SQL | PASS |
+| D-MIG-03 | migrate | applyMigrations tanpa DATABASE_URL → error | PASS |
 
 ## 4. Telegram (mock, tanpa token)
 
@@ -68,6 +84,23 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | T-FAV-01 | favorite | simpan + duplikat | PASS |
 | T-ADM-01 | admin | user biasa ditolak | PASS |
 | T-ADM-02 | admin | admin diizinkan | PASS |
+| T-LATEST-01 | /latest | daftar terbaru + tombol callback | PASS |
+| T-LATEST-02 | /latest | kosong → pesan aman | PASS |
+| T-UNKNOWN-01 | unknown | perintah tak dikenal direspons | PASS |
+| T-CB-ACK-01 | callback | query di-acknowledge | PASS |
+| T-OWNER-01 | akses | owner lihat Admin, user biasa tidak | PASS |
+| T-ERR-01 | error | handler error + redaksi rahasia | PASS |
+| T-ERR-02 | error | database error ditangani | PASS |
+| T-CB-01 | callback | data tak dikenal tidak crash | PASS |
+| T-ART-05 | viewer | tombol Kembali → hasil/menu | PASS |
+| T-FAV-04 | favorite | hapus favorit | PASS |
+| T-FAV-05 | favorite | artikel favorit → tombol hapus | PASS |
+| T-SRCH-03 | search | pagination callback | PASS |
+| T-ADM-05 | admin | /status | PASS |
+| T-ADM-06 | admin | /stat | PASS |
+| T-ADM-07 | admin | /status user biasa ditolak | PASS |
+| T-ADM-08 | admin | /sync user biasa ditolak, admin diizinkan | PASS |
+| T-TG-LIVE-01 | live | getMe + no webhook + polling + handler | PASS (11/11, @khotbahjumatbot) |
 
 ## 5. PDF
 
@@ -79,6 +112,7 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | F-PDF-04 | pdf | judul panjang + nama file aman | PASS |
 | F-PDF-05 | pdf | cleanup file sementara sukses/gagal | PASS |
 | F-PDF-06 | pdf | test visual halaman sampel | NOT_VERIFIED |
+| F-PDF-07 | pdf | kategori tampil & artikel kosong tidak crash | PASS |
 
 ## 6. Scheduler
 
@@ -97,8 +131,9 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 
 | ID | Area | Skenario | Status |
 |---|---|---|---|
-| I-SB-01 | supabase | migrasi + CRUD nyata | NOT_VERIFIED |
-| I-TG-01 | telegram | bot live long polling | NOT_VERIFIED |
+| I-SB-01 | supabase | migrasi + CRUD nyata (tabel + unique + FK) | PASS (2026-09-27, db:verify 22/22) |
+| I-E2E-01 | supabase | search FTS + pagination + viewer + favorit + history + PDF (live) | PASS (smoke:e2e 16/16) |
+| I-TG-01 | telegram | bot live long polling + handler + owner detection | PASS (smoke:telegram 11/11) |
 | I-SC-01 | scraper | fetch live NU Online (mode aman) | PASS (2026-09-27, 40 ditemukan/3 disimpan/0 gagal) |
 | I-PDF-01 | pdf | kirim dokumen ke Telegram nyata | NOT_VERIFIED |
 
@@ -117,6 +152,9 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | H-CB-01 | bot | callback tidak dikenal/expired | PASS |
 | — | audit | `npm audit` | PASS (0 vulnerabilities) |
 | — | secret | scan file terlacak | PASS (hanya fixture palsu di tests/) |
+| H-DB-01 | db live | RLS aktif di 6 tabel, 0 policy publik | PASS |
+| H-DB-02 | db live | `anon`/`authenticated` tanpa DML; hanya `service_role` | PASS |
+| H-DB-03 | db live | tidak ada sisa data dummy setelah cleanup | PASS |
 
 ## 8. Termux / perangkat Android
 

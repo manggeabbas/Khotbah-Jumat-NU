@@ -18,14 +18,14 @@ function applyFilters(query, filters) {
 }
 
 /**
- * @param {{ url: string, key: string }} creds
+ * @param {{ url: string, secretKey: string }} creds
  * @param {{ logger?: object }} [deps]
  */
 export function createSupabaseStore(creds, { logger } = {}) {
-  if (!creds?.url || !creds?.key) {
-    throw new DatabaseError('Kredensial Supabase tidak lengkap (url/key).');
+  if (!creds?.url || !creds?.secretKey) {
+    throw new DatabaseError('Kredensial Supabase tidak lengkap (url/secretKey).');
   }
-  const client = createClient(creds.url, creds.key, {
+  const client = createClient(creds.url, creds.secretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 

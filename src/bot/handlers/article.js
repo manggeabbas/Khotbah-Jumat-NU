@@ -23,12 +23,14 @@ export function createArticleHandlers({ config, repos, session, logger }) {
 
   async function sendArticle(ctx, article) {
     const user = await ensureUser(ctx, repos);
+    let isFavorite = false;
     if (user) {
       try {
         await repos.history.record(user.id, article.id);
         await repos.history.trim(user.id, config.history.max);
+        isFavorite = await repos.favorites.exists(user.id, article.id);
       } catch (err) {
-        logger?.warn('[ARTICLE] gagal mencatat riwayat', { error: err.message });
+        logger?.warn('[ARTICLE] gagal mencatat riwayat/favorit', { error: err.message });
       }
     }
 
@@ -42,7 +44,11 @@ export function createArticleHandlers({ config, repos, session, logger }) {
       await ctx.reply(part);
     }
     await ctx.reply(articleActionsPrompt(), {
-      reply_markup: articleActionsKeyboard({ articleId: article.id, canExportPdf: canExportPdf(article) }),
+      reply_markup: articleActionsKeyboard({
+        articleId: article.id,
+        canExportPdf: canExportPdf(article),
+        isFavorite,
+      }),
     });
   }
 

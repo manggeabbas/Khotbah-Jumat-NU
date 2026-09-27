@@ -23,18 +23,21 @@ git clone <URL_REPOSITORY> ~/khutbah-bot
 cd ~/khutbah-bot
 npm ci --omit=dev
 cp .env.example .env
-nano .env        # isi BOT_TOKEN, SUPABASE_URL, kunci, ADMIN_TELEGRAM_ID
+nano .env        # isi TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SECRET_KEY, TELEGRAM_USER_ID
 ```
 
 `npm ci` dipakai agar versi dependency persis seperti `package-lock.json`.
 
 ## 3. Migrasi database (sekali)
 
-Terapkan `src/database/schema.sql` ke Supabase (SQL Editor, atau):
+Terapkan migration reproducible di `supabase/migrations/` (butuh koneksi
+PostgreSQL langsung, bukan Secret key):
 
 ```bash
-npm run migrate          # tinjau SQL
-npm run migrate -- --apply   # bila DATABASE_URL & psql tersedia
+npm run migrate              # tinjau daftar migration + SQL
+# Tambahkan DATABASE_URL ke .env (Supabase > Project Settings > Database > Connection string)
+npm run migrate -- --apply   # terapkan
+npm run db:verify            # verifikasi tabel & CRUD
 ```
 
 ## 4. Jalankan

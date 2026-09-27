@@ -33,10 +33,18 @@ export function helpText() {
     '🕌 BANTUAN\n\n' +
     '/start — menu utama\n' +
     '/menu — tampilkan menu\n' +
+    '/latest — khutbah terbaru\n' +
     '/search — cari khutbah berdasarkan tema\n' +
     '/help — bantuan ini\n\n' +
     'Anda juga dapat langsung mengetik tema\n' +
     'setelah menekan 🔎 Cari Khutbah.'
+  );
+}
+
+export function unknownCommandText() {
+  return (
+    '⚠️ Maaf, perintah tidak dikenal.\n\n' +
+    'Ketik /help untuk daftar perintah, atau gunakan menu di bawah ini.'
   );
 }
 

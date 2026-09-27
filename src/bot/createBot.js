@@ -17,7 +17,7 @@ import { ERRORS } from './messages.js';
  */
 export function createBot({ config, services, logger }) {
   if (!config.telegram?.token) {
-    throw new Error('BOT_TOKEN belum diset.');
+    throw new Error('TELEGRAM_BOT_TOKEN belum diset.');
   }
   const { repos, searchService, session, syncService, pdfService } = services;
 
@@ -43,8 +43,12 @@ export function createBot({ config, services, logger }) {
   bot.start((ctx) => startHandlers.start(ctx));
   bot.help((ctx) => startHandlers.help(ctx));
   bot.command('menu', (ctx) => startHandlers.menu(ctx));
+  bot.command('latest', (ctx) => articleHandlers.latest(ctx, 0));
   bot.command('search', (ctx) => searchHandlers.begin(ctx));
   bot.command('admin', (ctx) => adminHandlers.menu(ctx));
+  bot.command('status', (ctx) => adminHandlers.status(ctx));
+  bot.command('stat', (ctx) => adminHandlers.stats(ctx));
+  bot.command('sync', (ctx) => adminHandlers.sync(ctx));
   bot.command('tentang', (ctx) => startHandlers.about(ctx));
 
   // ---- Menu actions ----
@@ -64,17 +68,23 @@ export function createBot({ config, services, logger }) {
 
   action(/^srch:page:(\d+)$/, (ctx) => searchHandlers.page(ctx, Number(ctx.match[1])));
   action(/^art:(\d+)$/, (ctx) => articleHandlers.show(ctx, Number(ctx.match[1])));
+  action('art:back', (ctx) => {
+    const state = session.get(ctx.from.id) || {};
+    if (state.lastQuery) return searchHandlers.page(ctx, state.page || 0);
+    return startHandlers.menu(ctx);
+  });
   action(/^fav:add:(\d+)$/, (ctx) => favoriteHandlers.add(ctx, Number(ctx.match[1])));
+  action(/^fav:del:(\d+)$/, (ctx) => favoriteHandlers.remove(ctx, Number(ctx.match[1])));
   action(/^fav:page:(\d+)$/, (ctx) => favoriteHandlers.list(ctx, Number(ctx.match[1])));
   action(/^hist:page:(\d+)$/, (ctx) => articleHandlers.history(ctx, Number(ctx.match[1])));
   action(/^latest:page:(\d+)$/, (ctx) => articleHandlers.latest(ctx, Number(ctx.match[1])));
   action(/^pdf:(\d+)$/, (ctx) => pdfHandlers.export(ctx, Number(ctx.match[1])));
-  action(/^admin:(stats|sync|articles|users|syncs|errors)$/, (ctx) => adminHandlers[ctx.match[1]](ctx));
+  action(/^admin:(status|stats|sync|articles|users|syncs|errors)$/, (ctx) => adminHandlers[ctx.match[1]](ctx));
 
-  // ---- Teks bebas = query pencarian ----
+  // ---- Teks bebas ----
   bot.on('text', async (ctx) => {
     const text = ctx.message?.text || '';
-    if (text.startsWith('/')) return; // command tak dikenal
+    if (text.startsWith('/')) return startHandlers.unknown(ctx); // perintah tak dikenal
     return searchHandlers.onText(ctx, text);
   });
 
@@ -99,7 +109,15 @@ export function createBot({ config, services, logger }) {
           logger?.info('[TELEGRAM] Bot started');
         })
         .catch((err) => {
-          logger?.error('[TELEGRAM] launch gagal', err);
+          if (err?.code === 409) {
+            logger?.error(
+              '[TELEGRAM] Konflik 409: token yang sama dipakai instance lain. Hentikan instance lain lalu coba lagi.',
+            );
+          } else if (err?.code === 401) {
+            logger?.error('[TELEGRAM] 401: token tidak valid (periksa TELEGRAM_BOT_TOKEN).');
+          } else {
+            logger?.error('[TELEGRAM] launch gagal', err);
+          }
         });
     },
     async stop() {

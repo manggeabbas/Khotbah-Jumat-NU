@@ -15,7 +15,7 @@ Dipakai sebelum menandai rilis atau men-`git push` ke GitHub.
 ## Manual (pemilik)
 
 - [ ] Migrasi Supabase diterapkan & ditinjau (`npm run migrate`)
-- [ ] `BOT_TOKEN` & kunci Supabase diisi di `.env` (tidak dibagikan)
+- [ ] `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `TELEGRAM_USER_ID` diisi di `.env` (tidak dibagikan)
 - [ ] Bot diuji live di Telegram (`npm start`)
 - [ ] Izin/lisensi konten NU Online dipastikan (sebelum `FULL_CONTENT_ENABLED=true`)
 - [ ] Inspeksi visual PDF (Arab + harakat)

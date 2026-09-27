@@ -26,6 +26,19 @@ export function createFavoriteHandlers({ config, repos, logger }) {
       return respond(ctx, 'ℹ️ Khutbah ini sudah ada di favorit Anda.', { reply_markup: backToMenuKeyboard() });
     },
 
+    async remove(ctx, articleId) {
+      await ackCallback(ctx);
+      const user = await ensureUser(ctx, repos);
+      if (!user) return respond(ctx, ERRORS.generic);
+      try {
+        await repos.favorites.remove(user.id, articleId);
+      } catch (err) {
+        logger?.error('[FAVORITE] gagal menghapus', err);
+        return respond(ctx, ERRORS.database);
+      }
+      return respond(ctx, '✅ Khutbah dihapus dari favorit.', { reply_markup: backToMenuKeyboard() });
+    },
+
     async list(ctx, page = 0) {
       const user = await ensureUser(ctx, repos);
       if (!user) return respond(ctx, ERRORS.generic);

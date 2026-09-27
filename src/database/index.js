@@ -13,9 +13,9 @@ import { createRepositories } from './repositories.js';
 export function createDatabase(config, { logger, store } = {}) {
   let backend = store;
   if (!backend) {
-    const { url, key } = config.supabase || {};
-    if (url && key) {
-      backend = createSupabaseStore({ url, key }, { logger });
+    const { url, secretKey } = config.supabase || {};
+    if (url && secretKey) {
+      backend = createSupabaseStore({ url, secretKey }, { logger });
       logger?.info('[DATABASE] Memakai backend Supabase');
     } else {
       backend = createMemoryStore();

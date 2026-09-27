@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createMemoryStore } from '../src/database/memoryStore.js';
 import { createRepositories } from '../src/database/repositories.js';
+import { listMigrations, readMigration, applyMigrations } from '../src/database/migrate.js';
 
 function setup() {
   const store = createMemoryStore();
@@ -165,14 +166,61 @@ test('D-LOG-02: sync_logs start/finish/last', async () => {
   assert.ok(last.finished_at);
 });
 
-test('D-SQL-01: schema idempoten memuat semua tabel & constraint', () => {
-  const sql = readFileSync(fileURLToPath(new URL('../src/database/schema.sql', import.meta.url)), 'utf8');
+test('D-SQL-01: migration idempoten memuat tabel, constraint, indeks', () => {
+  const sql = readFileSync(
+    fileURLToPath(new URL('../supabase/migrations/001_initial_schema.sql', import.meta.url)),
+    'utf8',
+  );
   for (const t of ['articles', 'users', 'favorites', 'history', 'search_logs', 'sync_logs']) {
     assert.match(sql, new RegExp(`create table if not exists public\\.${t}\\b`, 'i'), `tabel ${t} hilang`);
   }
+  // Unique & FK
   assert.match(sql, /create unique index if not exists articles_url_key/i);
   assert.match(sql, /create unique index if not exists users_telegram_id_key/i);
   assert.match(sql, /favorites_user_article_key unique \(user_id, article_id\)/i);
+  assert.match(sql, /references public\.users \(id\) on delete cascade/i);
+  assert.match(sql, /references public\.articles \(id\) on delete cascade/i);
+  // Kolom penting
+  assert.match(sql, /image_url\s+text/i);
+  assert.match(sql, /last_synced_at\s+timestamptz/i);
   assert.match(sql, /search_vector tsvector generated always as/i);
+  // CHECK
+  assert.match(sql, /articles_status_check check/i);
+  assert.match(sql, /users_telegram_id_positive check/i);
+  assert.match(sql, /sync_logs_status_check check/i);
+  // Fungsi & RLS
   assert.match(sql, /create or replace function public\.search_articles/i);
+  assert.equal((sql.match(/enable row level security/gi) || []).length, 6, 'RLS harus aktif di 6 tabel');
+  assert.ok(!/create policy/i.test(sql), 'tidak boleh ada policy publik');
+});
+
+test('D-ART-05: image_url & last_synced_at tersimpan', async () => {
+  const { repos } = setup();
+  const res = await repos.articles.upsert(
+    baseArticle({ image_url: 'https://img.example/a.webp', url: 'https://x/img' }),
+  );
+  assert.equal(res.article.image_url, 'https://img.example/a.webp');
+  assert.ok(res.article.last_synced_at, 'last_synced_at harus terisi');
+});
+
+test('D-ART-06: last_synced_at diperbarui walau konten sama', async () => {
+  const { repos } = setup();
+  const a1 = await repos.articles.upsert(baseArticle({ url: 'https://x/sync', last_synced_at: '2026-01-01T00:00:00.000Z' }));
+  assert.equal(a1.article.last_synced_at, '2026-01-01T00:00:00.000Z');
+  const a2 = await repos.articles.upsert(baseArticle({ url: 'https://x/sync', last_synced_at: '2026-02-02T00:00:00.000Z' }));
+  assert.equal(a2.updated, false);
+  assert.equal(a2.article.last_synced_at, '2026-02-02T00:00:00.000Z');
+});
+
+test('D-MIG-01: listMigrations menemukan 001_initial_schema.sql', () => {
+  const files = listMigrations();
+  assert.ok(files.includes('001_initial_schema.sql'), `ditemukan: ${files.join(', ')}`);
+});
+
+test('D-MIG-02: readMigration mengembalikan SQL', () => {
+  assert.match(readMigration('001_initial_schema.sql'), /create table if not exists public\.articles/i);
+});
+
+test('D-MIG-03: applyMigrations tanpa DATABASE_URL -> error', async () => {
+  await assert.rejects(() => applyMigrations({ databaseUrl: '' }), /DATABASE_URL/);
 });

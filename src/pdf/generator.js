@@ -85,6 +85,7 @@ export function createPdfService({ config, logger, outputDir } = {}) {
       doc.fontSize(10);
       if (article.author) doc.text(`Penulis: ${article.author}`, { align: 'center' });
       doc.text(`Tanggal: ${formatDate(article.published_at)}`, { align: 'center' });
+      if (article.category) doc.text(`Kategori: ${article.category}`, { align: 'center' });
       doc.moveDown(0.8);
 
       const blocks = [];

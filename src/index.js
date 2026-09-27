@@ -5,6 +5,7 @@
  * sini. Modul lain dirancang agar dapat dites tanpa token.
  */
 import { loadConfig, findConfigProblems } from './config.js';
+import { loadEnv } from './loadEnv.js';
 import { ConfigError } from './utils/errors.js';
 import { createLogger } from './logger.js';
 import { createApp } from './app.js';
@@ -15,12 +16,14 @@ function printConfigProblems(problems) {
       problems.map((p) => `  - ${p}`).join('\n') +
       '\n\nLangkah:\n' +
       "  1. Salin .env.example menjadi .env\n" +
-      '  2. Isi BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (atau ANON), ADMIN_TELEGRAM_ID\n' +
+      '  2. Isi SUPABASE_URL, SUPABASE_SECRET_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_USER_ID\n' +
       '  3. Jalankan ulang: npm start\n\n',
   );
 }
 
 async function main() {
+  loadEnv();
+
   let config;
   try {
     config = loadConfig(process.env);
@@ -42,7 +45,7 @@ async function main() {
 
   const logger = createLogger({
     level: config.logging.level,
-    secrets: [config.telegram.token, config.supabase.serviceRoleKey, config.supabase.anonKey],
+    secrets: [config.telegram.token, config.supabase.secretKey],
   });
 
   logger.info('[BOOT] Starting Khutbah Bot...', { env: config.env, node: process.version });

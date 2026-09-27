@@ -1,7 +1,7 @@
 /**
  * Command & menu dasar: /start, /menu, /help, tentang.
  */
-import { welcomeText, helpText, aboutText } from '../messages.js';
+import { welcomeText, helpText, aboutText, unknownCommandText } from '../messages.js';
 import { mainMenuKeyboard, backToMenuKeyboard } from '../keyboards/keyboards.js';
 import { ensureUser, isAdminUser, respond } from '../context.js';
 
@@ -34,6 +34,10 @@ export function createStartHandlers({ config, repos, logger }) {
 
     async fallbackText(ctx) {
       await respond(ctx, welcomeText(), { reply_markup: menuFor(ctx) });
+    },
+
+    async unknown(ctx) {
+      await respond(ctx, unknownCommandText(), { reply_markup: menuFor(ctx) });
     },
   };
 }
