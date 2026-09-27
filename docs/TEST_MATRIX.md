@@ -27,14 +27,18 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 
 | ID | Area | Skenario | Status |
 |---|---|---|---|
-| P-LIST-01 | scraper | ekstraksi URL + judul + tanggal listing | PENDING |
-| P-ART-01 | scraper | metadata (judul, tanggal, sumber, url) | PENDING |
-| P-ART-02 | scraper | body `#detail-content` tanpa nav/iklan | PENDING |
-| P-ART-03 | scraper | preservasi paragraf & teks Arab | PENDING |
-| P-ART-04 | scraper | pemisahan Khutbah I/II hanya bila ada penanda | PENDING |
-| P-ART-05 | scraper | halaman tidak lengkap → status parse_failed | PENDING |
-| P-ART-06 | scraper | perubahan markup → tidak crash, gagal validasi | PENDING |
-| P-ART-07 | scraper | dedup URL | PENDING |
+| P-LIST-01 | scraper | ekstraksi URL + judul + tanggal listing | PASS |
+| P-ART-01 | scraper | metadata (judul, tanggal, sumber, url) | PASS |
+| P-ART-02 | scraper | body `#detail-content` tanpa nav/iklan | PASS |
+| P-ART-03 | scraper | preservasi paragraf & teks Arab | PASS |
+| P-ART-04 | scraper | pemisahan Khutbah I/II hanya bila ada penanda | PASS |
+| P-ART-05 | scraper | halaman tidak lengkap → status parse_failed | PASS |
+| P-ART-06 | scraper | perubahan markup → tidak crash, gagal validasi | PASS |
+| P-ART-07 | scraper | dedup URL | PASS |
+| P-ROB-01 | robots | parse & isAllowed | PASS |
+| P-FETCH-01 | fetchClient | retry 500, no-retry 403/404 | PASS |
+| S-SYN-01..05 | sync | idempoten, lock, robots, failed, discover | PASS |
+| P-LIVE-01 | scraper | live NU Online (metadata saja) | PASS (2026-09-27, 40 item) |
 
 ## 3. Database (mock/in-memory)
 

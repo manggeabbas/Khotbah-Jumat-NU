@@ -118,6 +118,7 @@ export function createMemoryStore({ now = () => new Date().toISOString() } = {})
           [a.title, 4],
           [a.description, 2],
           [a.category, 2],
+          [a.snippet, 1],
           [a.content, 1],
         ];
         for (const term of terms) {

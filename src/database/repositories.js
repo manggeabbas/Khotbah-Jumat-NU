@@ -29,6 +29,7 @@ export function createRepositories(store) {
         published_at: input.published_at ?? null,
         language: input.language || 'id',
         description: input.description ?? null,
+        snippet: input.snippet ?? null,
         category: input.category ?? null,
         content: input.content ?? null,
         khutbah_1: input.khutbah_1 ?? null,

@@ -38,8 +38,8 @@ Tanggal audit: 2026-09-27
 |---|---|---|---|
 | 0 | Audit & rencana | PASS | — |
 | 1 | Fondasi project | PASS | `750fcd3` |
-| 2 | Database Supabase | IN_PROGRESS | — |
-| 3 | Discovery & parser NU Online | PENDING | — |
+| 2 | Database Supabase | PASS (mock) / NOT_VERIFIED (live) | `1a0869b` |
+| 3 | Discovery & parser NU Online | IN_PROGRESS | — |
 | 4 | Fondasi Telegram | PENDING | — |
 | 5 | Pencarian & pagination | PENDING | — |
 | 6 | Pembaca artikel | PENDING | — |
@@ -113,3 +113,26 @@ Tanggal audit: 2026-09-27
   — butuh kredensial & persetujuan. Backend Supabase belum diuji jaringan.
 - Masalah tersisa: keputusan jenis key Supabase (service_role vs anon+RLS).
 - Langkah berikut: Fase 3 — discovery & parser NU Online.
+
+### Fase 3 — Discovery & parser NU Online
+- File berubah:
+  - `src/scraper/cleaner.js` (HTML → blok teks; buang nav/iklan/script; jaga Arab).
+  - `src/scraper/parser.js` (listing, artikel, tanggal Indonesia, canonical).
+  - `src/scraper/fetchClient.js` (rate limit, timeout, retry/backoff, 403 stop).
+  - `src/scraper/robots.js` (parse + guard cache).
+  - `src/scraper/nuonline.js` (discovery + fetch artikel).
+  - `src/scraper/sync.js` (orchestrasi + validasi + mode konten + lock).
+  - `src/scraper/cli-sync.js` (`npm run sync`).
+  - `tests/fixtures/*.html` (SINTETIS), `tests/scraper.test.js`.
+  - Tambahan kolom `snippet` di `schema.sql` (untuk mode aman).
+- Perintah tes:
+  - `npm test` → **68 pass / 0 fail**.
+  - Live check (metadata saja, tanpa menyimpan konten) 2026-09-27:
+    robots `/khutbah` allowed; **40 artikel** ditemukan; judul/tanggal/deskripsi
+    terparse; penanda Khutbah I/II terdeteksi; teks Arab terdeteksi.
+- Hasil: fixture parser (termasuk halaman tak lengkap, tanpa penanda, markup
+  berubah, duplikat, Arab) lulus; live fetch struktur terverifikasi.
+- Catatan: `author` sering null (byline hanya "NU Online") — sesuai ekspektasi.
+  Deteksi bahasa (id/jv) belum dilakukan; default `id`.
+- Masalah tersisa: konten penuh hanya disimpan bila `FULL_CONTENT_ENABLED=true`.
+- Langkah berikut: Fase 4 — fondasi Telegram.

@@ -15,6 +15,7 @@ create table if not exists public.articles (
   published_at  timestamptz,
   language      text default 'id',
   description   text,
+  snippet       text,
   category      text,
   content       text,
   khutbah_1     text,
@@ -39,6 +40,7 @@ begin
         setweight(to_tsvector('simple', coalesce(title, '')), 'A') ||
         setweight(to_tsvector('simple', coalesce(description, '')), 'B') ||
         setweight(to_tsvector('simple', coalesce(category, '')), 'B') ||
+        setweight(to_tsvector('simple', coalesce(snippet, '')), 'C') ||
         setweight(to_tsvector('simple', coalesce(content, '')), 'C')
       ) stored;
   end if;
