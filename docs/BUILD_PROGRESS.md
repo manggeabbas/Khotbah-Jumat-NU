@@ -37,8 +37,8 @@ Tanggal audit: 2026-09-27
 | Fase | Nama | Status | Commit |
 |---|---|---|---|
 | 0 | Audit & rencana | PASS | — |
-| 1 | Fondasi project | IN_PROGRESS | — |
-| 2 | Database Supabase | PENDING | — |
+| 1 | Fondasi project | PASS | `750fcd3` |
+| 2 | Database Supabase | IN_PROGRESS | — |
 | 3 | Discovery & parser NU Online | PENDING | — |
 | 4 | Fondasi Telegram | PENDING | — |
 | 5 | Pencarian & pagination | PENDING | — |
@@ -92,3 +92,24 @@ Tanggal audit: 2026-09-27
   `bidi-js` butuh `getEmbeddingLevels` lalu `getReorderedString(str, levels)`.
 - Masalah tersisa: tidak ada. Bot belum benar-benar polling (fase 4).
 - Langkah berikut: Fase 2 — migrasi & repository database.
+
+### Fase 2 — Database Supabase
+- File berubah:
+  - `src/database/schema.sql` (idempoten: 6 tabel, indeks, unique, trigger,
+    fungsi `search_articles` FTS + fallback, RLS).
+  - `src/database/supabaseStore.js` (backend Supabase, primitive generik).
+  - `src/database/memoryStore.js` (backend in-memory untuk tes).
+  - `src/database/repositories.js` (articles/users/favorites/history/logs).
+  - `src/database/index.js` (pabrik database).
+  - `src/database/migrate.js` (CLI: print SQL / `--apply` via psql).
+  - `tests/database.test.js`.
+- Perintah tes:
+  - `npm test` → **44 pass / 0 fail** (termasuk D-ART-01..04, D-USR-01,
+    D-FAV-01..02, D-HIS-01..02, D-LOG-01..02, D-SQL-01 statis).
+  - `npm run lint` → **18 file OK**.
+  - `npm run migrate` → mencetak SQL untuk ditinjau (tanpa menyentuh DB).
+- Hasil: migrasi tervalidasi statis; repository mock lulus.
+- **NOT_VERIFIED:** penerapan migrasi ke Supabase nyata + CRUD live (I-SB-01)
+  — butuh kredensial & persetujuan. Backend Supabase belum diuji jaringan.
+- Masalah tersisa: keputusan jenis key Supabase (service_role vs anon+RLS).
+- Langkah berikut: Fase 3 — discovery & parser NU Online.
