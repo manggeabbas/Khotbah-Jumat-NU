@@ -296,6 +296,19 @@ test('P-ART-08: canonical di luar domain -> fallback ke URL input', () => {
   assert.equal(a.url, `${BASE}/khutbah/khutbah-asli-ABC12`);
 });
 
+test('P-CLEAN-01: blok "Baca Juga"/artikel terkait dibuang', () => {
+  const html = `<div id="detail-content">
+    <p>Paragraf utama isi khutbah.</p>
+    <div id="paragraph-news-0"><div><p>Baca Juga</p><a href="/x"><h2>Judul Terkait XYZ</h2></a></div></div>
+    <p>Paragraf penutup isi khutbah.</p>
+  </div>`;
+  const { text } = cleanHtmlBody(html);
+  assert.match(text, /Paragraf utama isi khutbah/);
+  assert.match(text, /Paragraf penutup isi khutbah/);
+  assert.ok(!/Baca Juga/i.test(text), 'Baca Juga harus dibuang');
+  assert.ok(!/Judul Terkait XYZ/.test(text), 'artikel terkait harus dibuang');
+});
+
 test('P-ART-09: kategori & excerpt terparsing', () => {
   const a = parseArticle(fixture('article.html'), `${BASE}/khutbah/x`, BASE);
   assert.equal(a.category, 'Khutbah');
@@ -365,4 +378,17 @@ test('S-SYN-07: canonical URL sama -> tidak duplikat', async () => {
   await sync.run();
   await sync.run();
   assert.equal(await repos.articles.count(), 1);
+});
+
+test('S-SYN-08: sync_logs memakai kolom articles_* yang benar', async () => {
+  const repos = createRepositories(createMemoryStore());
+  const parsed = parseArticle(fixture('article.html'), `${BASE}/khutbah/x`, BASE);
+  const sync = createSyncService({ repos, config: makeConfig(), scraper: fakeScraper([parsed]) });
+  const r = await sync.run();
+  const last = await repos.syncLogs.last();
+  assert.equal(last.status, 'success');
+  assert.equal(last.articles_found, r.stats.found);
+  assert.equal(last.articles_inserted, r.stats.inserted);
+  assert.equal(last.articles_updated, r.stats.updated);
+  assert.equal(last.articles_failed, r.stats.failed);
 });

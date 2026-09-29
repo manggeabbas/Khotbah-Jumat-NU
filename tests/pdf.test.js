@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createPdfService } from '../src/pdf/generator.js';
-import { shapeArabic, hasArabic, isMostlyArabic, arabicRatio } from '../src/pdf/arabic.js';
+import { hasArabic, isMostlyArabic, arabicRatio } from '../src/pdf/arabic.js';
 
 const OUT = path.join(process.cwd(), 'tmp', 'pdf-test');
 const silentLogger = { debug() {}, info() {}, warn() {}, error() {} };
@@ -39,14 +39,15 @@ function pageCount(file) {
   return m ? Number(m[1]) : null;
 }
 
+function pageText(file, page) {
+  return execFileSync('pdftotext', ['-f', String(page), '-l', String(page), file, '-'], { encoding: 'utf8' });
+}
+
 const service = () => createPdfService({ config: {}, logger: silentLogger, outputDir: OUT });
 
-test('arabic: deteksi & shaping', () => {
+test('arabic: deteksi skrip', () => {
   assert.equal(hasArabic('Hello world'), false);
   assert.equal(hasArabic('السلام عليكم'), true);
-  assert.equal(shapeArabic('Hello'), 'Hello');
-  const shaped = shapeArabic('بِسْمِ اللَّهِ');
-  assert.notEqual(shaped, 'بِسْمِ اللَّهِ');
   assert.ok(arabicRatio('السلام عليكم') > 0.5);
   assert.equal(isMostlyArabic('السلام عليكم'), true);
 });
@@ -138,6 +139,27 @@ test('F-PDF-07: kategori tampil & artikel kosong tidak crash', async () => {
   if (HAS_PDFTOTEXT) {
     const text = extractText(file);
     assert.match(text, /Kategori: Khutbah/);
+  }
+  await svc.cleanup(file);
+});
+
+test('F-PDF-10: dokumen singkat tetap 1 halaman (footer tidak menambah halaman)', async (t) => {
+  if (!HAS_PDFINFO) return t.skip('pdfinfo tidak tersedia');
+  const svc = service();
+  const { path: file } = await svc.generate({ title: 'Singkat', content: 'Kalimat pendek saja.', url: 'https://x' });
+  assert.equal(pageCount(file), 1, 'harus tepat 1 halaman (tidak digandakan)');
+  await svc.cleanup(file);
+});
+
+test('F-PDF-11: dokumen panjang tanpa halaman kosong di akhir', async (t) => {
+  if (!HAS_PDFINFO || !HAS_PDFTOTEXT) return t.skip('poppler tidak tersedia');
+  const svc = service();
+  const long = Array.from({ length: 120 }, (_, i) => `Paragraf ${i} ` + 'kata '.repeat(30)).join('\n\n');
+  const { path: file } = await svc.generate({ title: 'Panjang', content: long, url: 'https://x' });
+  const pages = pageCount(file);
+  assert.ok(pages >= 2, `harus multi-halaman, dapat ${pages}`);
+  for (let i = 1; i <= pages; i++) {
+    assert.ok(pageText(file, i).replace(/\s+/g, '').length > 0, `halaman ${i} kosong`);
   }
   await svc.cleanup(file);
 });

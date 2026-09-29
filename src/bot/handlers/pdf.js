@@ -4,8 +4,20 @@
 import { ERRORS } from '../messages.js';
 import { backToMenuKeyboard } from '../keyboards/keyboards.js';
 import { respond, ackCallback } from '../context.js';
+import { sendDocumentViaFetch } from '../upload.js';
 
-export function createPdfHandlers({ config, repos, pdfService, logger }) {
+export function createPdfHandlers({ config, repos, pdfService, logger, uploadDocument }) {
+  const upload =
+    uploadDocument ||
+    ((ctx, file) =>
+      sendDocumentViaFetch({
+        token: config.telegram.token,
+        chatId: ctx.chat.id,
+        filePath: file.path,
+        filename: file.filename,
+        caption: '🕌 Khutbah Jumat (PDF) — Sumber: NU Online',
+      }));
+
   return {
     async export(ctx, articleId) {
       await ackCallback(ctx);
@@ -34,7 +46,7 @@ export function createPdfHandlers({ config, repos, pdfService, logger }) {
       let file = null;
       try {
         file = await pdfService.generate(article);
-        await ctx.replyWithDocument({ source: file.path, filename: file.filename });
+        await upload(ctx, file);
       } catch (err) {
         logger?.error('[PDF] gagal membuat/mengirim', err);
         return respond(ctx, ERRORS.pdf, { reply_markup: backToMenuKeyboard() });

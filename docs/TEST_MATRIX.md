@@ -111,8 +111,13 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | F-PDF-03 | pdf | multi-halaman | PASS |
 | F-PDF-04 | pdf | judul panjang + nama file aman | PASS |
 | F-PDF-05 | pdf | cleanup file sementara sukses/gagal | PASS |
-| F-PDF-06 | pdf | test visual halaman sampel | NOT_VERIFIED |
+| F-PDF-06 | pdf | test visual halaman sampel | PASS (diverifikasi via render `pdftoppm`: Arab tersambung, Latin normal) |
 | F-PDF-07 | pdf | kategori tampil & artikel kosong tidak crash | PASS |
+| F-PDF-08 | pdf | font static Amiri + teks mentah (tanpa reshaper/bidi) | PASS |
+| F-PDF-09 | pdf | arah RTL Arab benar (via `features: []`) | PASS (render `pdftoppm`, 2 halaman) |
+| F-PDF-10 | pdf | dokumen singkat tetap 1 halaman (footer tidak menambah halaman) | PASS |
+| F-PDF-11 | pdf | dokumen panjang tanpa halaman kosong | PASS |
+| P-CLEAN-01 | cleaner | blok "Baca Juga"/artikel terkait dibuang | PASS |
 
 ## 6. Scheduler
 
@@ -135,7 +140,9 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | I-E2E-01 | supabase | search FTS + pagination + viewer + favorit + history + PDF (live) | PASS (smoke:e2e 16/16) |
 | I-TG-01 | telegram | bot live long polling + handler + owner detection | PASS (smoke:telegram 11/11) |
 | I-SC-01 | scraper | fetch live NU Online (mode aman) | PASS (2026-09-27, 40 ditemukan/3 disimpan/0 gagal) |
-| I-PDF-01 | pdf | kirim dokumen ke Telegram nyata | NOT_VERIFIED |
+| I-PDF-01 | pdf | kirim dokumen ke Telegram nyata | PASS (operasional, message_id diterima); inspeksi visual NOT_VERIFIED |
+| I-OP-01 | operasional | Telegram+DB+sync+latest+search+viewer+favorite+history+admin+PDF | PASS (15/15, 45 artikel production) |
+| I-FULL-01 | full content | viewer pakai content, splitting, Arabic, PDF, live Telegram | PASS (13/13, 3 artikel content) |
 
 ## 7b. Hardening (Fase 11)
 

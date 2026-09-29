@@ -12,10 +12,20 @@ const STRIP_TAGS = new Set(['script', 'style', 'noscript', 'iframe', 'ins', 'for
 const BLOCK_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'li', 'pre', 'figcaption', 'td']);
 
 const STRIP_CLASS_PATTERNS = [/\bprint:hidden\b/, /\bads?\b/i, /\bbanner\b/i, /\bshare\b/i, /\bsocial\b/i, /\brelated\b/i, /\bpromo\b/i];
+const STRIP_ID_PATTERNS = [/^paragraph-news/i, /\brelated\b/i, /\bbaca-juga\b/i];
 
 function isStrippedByAttr($, el) {
   const cls = ($(el).attr('class') || '') + ' ' + ($(el).attr('id') || '');
-  return STRIP_CLASS_PATTERNS.some((re) => re.test(cls));
+  if (STRIP_CLASS_PATTERNS.some((re) => re.test(cls))) return true;
+  const id = $(el).attr('id') || '';
+  if (STRIP_ID_PATTERNS.some((re) => re.test(id))) return true;
+  // Blok "Baca Juga" (artikel terkait) di dalam body.
+  const tag = (el.tagName || '').toLowerCase();
+  if (tag === 'div' || tag === 'section') {
+    const t = normalizeText($(el).text());
+    if (/^baca juga\b/i.test(t)) return true;
+  }
+  return false;
 }
 
 export function normalizeText(input) {

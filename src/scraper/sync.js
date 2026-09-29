@@ -20,6 +20,18 @@ function hashArticle({ title, text }) {
   return createHash('sha256').update(`${title || ''}\n${text || ''}`).digest('hex');
 }
 
+/** Petakan statistik internal ke kolom `sync_logs` yang benar. */
+function syncLogFields(status, stats, errorMessage = null) {
+  return {
+    status,
+    articles_found: stats.found ?? 0,
+    articles_inserted: stats.inserted ?? 0,
+    articles_updated: stats.updated ?? 0,
+    articles_failed: stats.failed ?? 0,
+    error_message: errorMessage,
+  };
+}
+
 /**
  * Membangun record artikel sesuai mode konten.
  * @param {object} parsed hasil parseArticle
@@ -107,11 +119,10 @@ export function createSyncService({ repos, config, logger, scraper, robots }) {
         const listPath = config.scraper.source.listPath;
         if (!(await robots.allowed(listPath))) {
           logger?.warn('[SYNC] robots.txt melarang listing, sinkronisasi dibatalkan');
-          await repos.syncLogs.finish(logRow.id, {
-            status: 'failed',
-            error_message: 'robots.txt melarang pengambilan listing',
-            ...stats,
-          });
+          await repos.syncLogs.finish(
+            logRow.id,
+            syncLogFields('failed', stats, 'robots.txt melarang pengambilan listing'),
+          );
           return { skipped: true, reason: 'robots_disallowed' };
         }
       }
@@ -163,19 +174,14 @@ export function createSyncService({ repos, config, logger, scraper, robots }) {
       }
 
       const status = stats.failed > 0 ? 'partial' : 'success';
-      await repos.syncLogs.finish(logRow.id, {
-        status,
-        ...stats,
-        error_message: errors.length > 0 ? errors.slice(0, 20).join('\n') : null,
-      });
+      await repos.syncLogs.finish(
+        logRow.id,
+        syncLogFields(status, stats, errors.length > 0 ? errors.slice(0, 20).join('\n') : null),
+      );
       logger?.info('[SYNC] selesai', { status, ...stats, errors: errors.length });
       return { skipped: false, status, stats, errors };
     } catch (err) {
-      await repos.syncLogs.finish(logRow.id, {
-        status: 'failed',
-        error_message: err?.message || String(err),
-        ...stats,
-      });
+      await repos.syncLogs.finish(logRow.id, syncLogFields('failed', stats, err?.message || String(err)));
       logger?.error('[SYNC] gagal total', err);
       if (err instanceof ScraperError) return { skipped: false, status: 'failed', stats, error: err.message };
       throw err;

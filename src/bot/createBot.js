@@ -25,7 +25,7 @@ export function createBot({ config, services, logger }) {
   const searchHandlers = createSearchHandlers({ config, repos, searchService, session, logger });
   const articleHandlers = createArticleHandlers({ config, repos, session, logger });
   const favoriteHandlers = createFavoriteHandlers({ config, repos, logger });
-  const pdfHandlers = createPdfHandlers({ config, repos, pdfService, logger });
+  const pdfHandlers = createPdfHandlers({ config, repos, pdfService, logger, uploadDocument: services.uploadDocument });
   const adminHandlers = createAdminHandlers({ config, repos, syncService, logger });
 
   const handlers = {

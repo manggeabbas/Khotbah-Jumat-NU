@@ -1,16 +1,15 @@
 /**
- * Penanganan teks Arab untuk PDF:
- *  - shaping (menyambung huruf) via arabic-reshaper;
- *  - pengurutan visual (bidi/RTL) via bidi-js.
+ * Helper teks Arab untuk PDF.
  *
- * CATATAN: `pdfkit` TIDAK melakukan shaping/bidi sendirian, sehingga langkah
- * ini wajib agar huruf Arab tersambung dan urutannya benar.
+ * PENTING: `pdfkit` + `fontkit` sudah menangani shaping & arah RTL **asalkan**
+ * opsi `features` diberikan saat memanggil `doc.text()`. Tanpa `features`,
+ * PDFKit memecah teks per-spasi dan menyusun kata dari kiri ke kanan (Arab jadi
+ * terbaca LTR). Dengan `features` (mis. `[]`), PDFKit memakai `fontkit.layoutRun`
+ * untuk seluruh string, dan fontkit membalik glyph untuk skrip RTL.
+ *
+ * Jadi: JANGAN reshape/bidi manual. Cukup kirim teks Unicode apa adanya +
+ * `features: []`. Helper di sini hanya untuk deteksi skrip (perataan).
  */
-import bidiFactory from 'bidi-js';
-import reshaper from 'arabic-reshaper';
-
-const { convertArabic } = reshaper;
-const bidi = bidiFactory();
 
 const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
 
@@ -24,18 +23,6 @@ export function arabicRatio(text) {
   if (!s) return 0;
   const matches = s.match(ARABIC_RE);
   return (matches ? matches.length : 0) / s.length;
-}
-
-/**
- * Melakukan shaping + pengurutan bidi. Hanya karakter Arab yang diubah;
- * teks Latin dipertahankan.
- */
-export function shapeArabic(text) {
-  const input = String(text || '');
-  if (!hasArabic(input)) return input;
-  const shaped = convertArabic(input);
-  const levels = bidi.getEmbeddingLevels(shaped);
-  return bidi.getReorderedString(shaped, levels);
 }
 
 /** Menentukan apakah paragraf didominasi Arab (untuk perataan kanan). */

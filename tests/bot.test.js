@@ -380,3 +380,34 @@ test('T-ADM-08: /sync user biasa ditolak, admin diizinkan', async () => {
   await admin.bot.handleUpdate(privateMessage('/sync', 999));
   assert.ok(allTexts(admin.calls).some((t) => /Sinkronisasi/i.test(t)));
 });
+
+test('T-ART-06: mode aman (FULL_CONTENT_ENABLED=false) menampilkan cuplikan', async () => {
+  const { bot, calls, repos } = await setup();
+  const art = (await repos.articles.upsert({
+    title: 'Safe',
+    url: 'https://x/safe',
+    content: 'x'.repeat(800),
+    snippet: 'cuplikan singkat saja',
+    content_hash: 'safe',
+    status: 'active',
+  })).article;
+  await bot.handleUpdate(callback(`art:${art.id}`));
+  assert.ok(allTexts(calls).some((t) => /menampilkan cuplikan/i.test(t)));
+});
+
+test('T-ART-07: mode penuh (FULL_CONTENT_ENABLED=true) menampilkan content', async () => {
+  const long = 'Isi lengkap khutbah tentang sabar. '.repeat(60);
+  const { bot, calls, repos } = await setup({ configOverrides: { content: { fullContentEnabled: true, snippetMaxLength: 400 } } });
+  const art = (await repos.articles.upsert({
+    title: 'Full',
+    url: 'https://x/full',
+    content: long,
+    snippet: long.slice(0, 400),
+    content_hash: 'full',
+    status: 'active',
+  })).article;
+  await bot.handleUpdate(callback(`art:${art.id}`));
+  const joined = allTexts(calls).join('\n');
+  assert.ok(joined.includes(long.slice(-60)), 'harus memuat bagian akhir naskah');
+  assert.ok(!/menampilkan cuplikan/i.test(joined), 'tidak boleh menampilkan catatan cuplikan');
+});

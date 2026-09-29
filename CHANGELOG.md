@@ -50,6 +50,20 @@ Format mengikuti Keep a Changelog; versi mengikuti Semantic Versioning.
 - Migration menambahkan GRANT eksplisit ke `service_role` (project yang tidak
   memberi DML otomatis via default privileges). `anon`/`authenticated` tanpa
   privilese.
+- `sync_logs` ditulis dengan nama kolom yang benar (`articles_*`), memperbaiki
+  `PGRST204` saat menyelesaikan sinkronisasi.
+- Pengiriman dokumen PDF memakai `fetch` native (mengatasi `socket hang up`
+  multipart pada Node 26).
+- **Rendering Arab PDF**: font static **Amiri** (Latin+Arab) + opsi
+  `features: []` pada `doc.text()` agar `pdfkit` memakai `fontkit.layoutRun`
+  untuk seluruh string (fontkit menangani shaping **dan arah RTL**). Tanpa
+  `features`, PDFKit memecah teks per-spasi dan menyusun kata LTR (Arab terbaca
+  terbalik). `arabic-reshaper`/`bidi-js` tidak dipakai lagi.
+- **Cleaner**: membuang blok artikel terkait **"Baca Juga"/"Lihat Semua"** dari
+  konten.
+- **PDF halaman ganda**: footer nomor halaman ditulis di area margin bawah dan
+  memicu PDFKit menambah halaman baru (konten 5 halaman jadi 10, 5 kosong).
+  Diperbaiki dengan `margins.bottom = 0` sementara + `lineBreak: false`.
 
 ### Security
 - Mode aman default (`FULL_CONTENT_ENABLED=false`): hanya metadata + cuplikan +

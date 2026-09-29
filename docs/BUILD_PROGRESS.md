@@ -411,3 +411,99 @@ Status: **PASS (lokal)** ✅ / Termux perangkat **NOT_VERIFIED**:
 #### GitHub
 - `gh` CLI **tidak tersedia** → berhenti di tahap **commit lokal** (belum push).
   Perlu URL repository GitHub dari pemilik untuk `git remote add` + `git push`.
+
+### Verifikasi Operasional Production (2026-09-27)
+- **Sync production pertama**: **45 artikel aktif** masuk Supabase (tidak dihapus).
+- **Dua bug production ditemukan & diperbaiki** (belum di-commit):
+  1. `sync_logs` di-update dengan nama kolom salah (`found/inserted/updated/failed`)
+     → `PGRST204`. Diperbaiki via `syncLogFields()` → `articles_found/...`;
+     ditambah tes **S-SYN-08**.
+  2. `ctx.replyWithDocument` (Telegraf/node-fetch) gagal `socket hang up`
+     (multipart) pada Node 26 → diperbaiki dengan uploader `fetch` native
+     (`src/bot/upload.js`); ditambah tes **T-PDF-01/02**.
+- Perbaikan lain: PDF mode aman memakai cuplikan/deskripsi bila `content` null.
+- **Hasil operasional: 15/15 PASS** — Telegram `@khotbahjumatbot`, owner id=10,
+  DB 45 artikel, initial sync success, `/latest`, search (`khutbah` total 45;
+  sinonim `shalat` total 1), article viewer, history, favorite (anti-duplikat),
+  **PDF generation + PDF delivery (message_id=48)**, admin `/status`, admin `/sync`.
+- **PDF inspeksi visual: NOT_VERIFIED** (ekstraksi teks lulus; tampilan perlu dilihat manusia).
+- Data production 45 artikel tetap utuh. `npm test` → 159 pass/1 skipped; lint 58 file.
+
+### Audit & Aktivasi FULL CONTENT (2026-09-28)
+Status: **PASS** ✅
+
+- **Penyebab masalah:** `.env` `FULL_CONTENT_ENABLED=false` (mode aman) sehingga
+  sync hanya menyimpan cuplikan; `articles.content` **null** untuk semua 45
+  artikel. Viewer menampilkan snippet sesuai desain (bukan bug kode).
+- **Konfigurasi lokal diubah:** `FULL_CONTENT_ENABLED=true` (via `.env`, bukan
+  hard-code). Nilai default di `.env.example` tetap `false`.
+- **Limited re-sync** (bukan full crawl): `SCRAPER_MAX_ARTICLES=3`,
+  `SCRAPER_MAX_LISTING_PAGES=1` → `inserted=0, updated=3, failed=0`.
+  Kini **3 artikel** punya `content` (~10–11k char, termasuk Arab & Khutbah I/II).
+- **Audit kode (semua benar):**
+  - `buildArticleRecord`: full mode → `content`, `khutbah_1/2`; safe mode → snippet.
+  - `formatArticleBody`: `FULL_CONTENT_ENABLED=true` → `articles.content`;
+    `false` → snippet + catatan.
+  - `article.js`: viewer memakai `formatArticleBody` (content) dan **tidak**
+    mengimpor scraper/fetch → **tanpa scraping saat buka artikel**.
+  - `pdf/generator.js`: memakai `khutbah_1/2` atau `content`.
+- **Verifikasi live** (`scripts/verify-fullcontent.js`): **13/13 PASS** —
+  viewer memakai content (bukan snippet), 5 pesan terpecah (<4096), Arabic aman,
+  PDF memuat naskah lengkap (48 KB, 12k char via `pdftotext`), naskah lengkap +
+  PDF terkirim ke Telegram (message_id), 45 artikel utuh.
+- Unit test: **162 tes (161 pass, 1 skipped)**; lint 59 file. Ditambah
+  T-ART-06 (mode aman → cuplikan) & T-ART-07 (mode penuh → content).
+- Catatan: 42 artikel lain tetap snippet sampai sync terjadwal berikutnya
+  memprosesnya dengan flag `true` (viewer tetap aman: fallback ke cuplikan).
+- **Inspeksi visual PDF tetap NOT_VERIFIED.**
+
+### Perbaikan Rendering Arab PDF & Kebersihan Konten (2026-09-28)
+Status: **PASS** ✅
+
+- **Penyebab Arab kacau:** pipeline `arabic-reshaper` + `bidi-js` diterapkan
+  padahal `pdfkit`+`fontkit` sudah melakukan shaping/bidi sendiri → teks Arab
+  jadi terbalik & rusak. (Dibuktikan dengan render `pdftoppm`: varian "raw"
+  benar, varian "reshape+bidi" rusak.)
+- **Crash font:** font Noto Naskh **variabel** membuat `fontkit` crash pada
+  artikel nyata (`reading '0'`). Varian static-nya tidak punya glyph Latin.
+- **Perbaikan:** PDF memakai teks Unicode apa adanya + font static
+  **Amiri-Regular.ttf** (Latin+Arab+harakat). `arabic-reshaper` & `bidi-js`
+  dihapus dari dependency.
+- **Temuan tambahan & perbaikan:** blok artikel terkait ("Baca Juga"/"Lihat
+  Semua", `<div id="paragraph-news-...">`) bocor ke konten → cleaner diperbaiki;
+  re-sync (dibatasi config) memperbarui 44 artikel.
+- **Hasil:** 45 artikel full content, **0 "Baca Juga"/"Lihat Semua"**,
+  0 duplikat URL. PDF artikel nyata dirender & diperiksa **visual** (`pdftoppm`)
+  → Arab tersambung/urut/berharakat & Latin normal; PDF dikirim ke Telegram
+  (message_id). `npm test` 162 pass/1 skipped; lint 59 file.
+- **Inspeksi visual PDF kini terverifikasi** (via render lokal), bukan lagi NOT_VERIFIED.
+
+### Perbaikan Arah RTL Arab PDF (2026-09-28)
+Status: **PASS** ✅
+
+- **Gejala:** teks Arab jelas tetapi terbaca **kiri→kanan** (salah arah).
+- **Akar masalah:** `pdfkit` tanpa opsi `features` memecah teks **per-spasi**
+  (`layout()` di pdfkit memisahkan tiap kata) dan menyusun kata dari kiri ke
+  kanan. Akibatnya urutan kata Arab terbalik. (Diagnosa via render `pdftoppm`.)
+- **Perbaikan:** panggil `doc.text(raw, { features: [] })` sehingga pdfkit
+  memakai `fontkit.layoutRun` untuk **seluruh string**; fontkit mendeteksi skrip
+  Arab dan **membalik glyph untuk RTL** dengan harakat tetap menempel. Tidak ada
+  reshape/bidi manual (`arabic-reshaper`/`bidi-js` dihapus).
+- **Verifikasi:** PDF artikel nyata dirender & dilihat → 2 halaman pertama Arab
+  terbaca **kanan→kiri** dengan harakat utuh; Latin normal; konten bersih.
+  PDF dikirim ke Telegram (message_id). `npm test` 162 pass/1 skipped; lint 59.
+- Font: **Amiri-Regular.ttf** (static, Latin+Arab+harakat).
+
+### Perbaikan PDF Halaman Ganda (2026-09-28)
+Status: **PASS** ✅
+
+- **Gejala:** materi 5 halaman menjadi PDF 10 halaman (5 halaman akhir kosong).
+- **Akar masalah:** footer nomor halaman ditulis pada `y = page.height - 40`
+  (di dalam area margin bawah). Karena melewati batas konten, PDFKit otomatis
+  menambah halaman baru setiap kali footer ditulis → halaman kosong bertambah.
+- **Perbaikan:** saat menulis footer, set `doc.page.margins.bottom = 0`
+  sementara + `lineBreak: false`, lalu kembalikan margin.
+- **Verifikasi:** artikel nyata → `pdfinfo` **5 halaman** (sebelumnya 10);
+  setiap halaman berisi teks (tidak ada halaman kosong); halaman terakhir
+  memuat "Sumber/URL" + "Halaman 5 dari 5". Regresi diuji (F-PDF-10/11).
+- `npm test` 164 pass/1 skipped; lint 59 file.
