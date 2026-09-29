@@ -12,6 +12,8 @@ publik, atau layanan database cloud. Development di Linux, production di
 > `@supabase/supabase-js`). Lihat
 > [`docs/MIGRATION_SUPABASE_TO_SQLITE.md`](docs/MIGRATION_SUPABASE_TO_SQLITE.md).
 
+> 📖 **Baru di sini?** Baca panduan lengkap: [`TUTORIAL.md`](TUTORIAL.md).
+
 ---
 
 ## Tujuan
