@@ -232,3 +232,4 @@ yang perlu dikompilasi** di Termux.
 
 Kode: MIT (`package.json`). Font Noto Naskh Arabic: OFL-1.1 (`fonts/README.md`).
 Konten khutbah milik **NU Online**.
+# Khotbah-Jumat-NU
