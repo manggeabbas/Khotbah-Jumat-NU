@@ -23,7 +23,7 @@ export async function createApp(config, deps = {}) {
     deps.logger ||
     createLogger({
       level: config.logging?.level || 'info',
-      secrets: [config.telegram?.token, config.supabase?.secretKey],
+      secrets: [config.telegram?.token],
     });
 
   // --- Database ---
@@ -99,6 +99,11 @@ export async function createApp(config, deps = {}) {
       if (!started) return;
       scheduler.stop();
       await botApp.stop();
+      try {
+        repos.close?.();
+      } catch (err) {
+        logger.warn('[DATABASE] gagal menutup SQLite', { error: err.message });
+      }
       started = false;
     },
   };

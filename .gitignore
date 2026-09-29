@@ -16,6 +16,13 @@ tmp/
 generated/
 *.pdf
 
+# Database lokal (JANGAN commit database production)
+data/
+backup/
+*.db
+*.db-shm
+*.db-wal
+
 # OS / editor
 .DS_Store
 Thumbs.db

@@ -66,6 +66,6 @@ test('T-ERR-01: handler error ditangani & rahasia diredaksi di log', async () =>
   const joined = lines.join('');
   assert.match(joined, /error saat menangani update/, 'error handler harus mencatat');
   assert.ok(!joined.includes(TOKEN), 'TELEGRAM_BOT_TOKEN tidak boleh bocor ke log');
-  assert.ok(!joined.includes(SECRET), 'SUPABASE_SECRET_KEY tidak boleh bocor ke log');
+  assert.ok(!joined.includes(SECRET), 'kunci rahasia terdaftar tidak boleh bocor ke log');
   assert.ok(joined.includes('[REDACTED]'), 'harus ada redaksi');
 });

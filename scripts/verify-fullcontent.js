@@ -29,7 +29,7 @@ async function main() {
   const config = loadConfig(process.env, { requireSecrets: true });
   ok('FULL_CONTENT_ENABLED aktif', config.content.fullContentEnabled === true);
 
-  const logger = createLogger({ level: 'error', secrets: [config.telegram.token, config.supabase.secretKey] });
+  const logger = createLogger({ level: 'error', secrets: [config.telegram.token] });
   const repos = createDatabase(config, { logger });
   const session = createSessionStore();
   const searchService = createSearchService({ repos, config, logger });

@@ -1,4 +1,8 @@
 -- ============================================================================
+-- ARSIP HISTORIS — TIDAK DIPAKAI RUNTIME.
+-- Skema PostgreSQL/Supabase lama sebelum migrasi ke SQLite (2026-09-29).
+-- Skema aktif: src/database/schema.sql (SQLite). Lihat docs/MIGRATION_SUPABASE_TO_SQLITE.md.
+-- ============================================================================
 -- 001_initial_schema.sql
 -- Bot Khutbah Jumat — skema awal (Supabase PostgreSQL)
 --

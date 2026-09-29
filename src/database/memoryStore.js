@@ -1,5 +1,5 @@
 /**
- * Backend in-memory dengan primitive yang sama seperti SupabaseStore.
+ * Backend in-memory dengan primitive yang sama seperti backend SQLite.
  * Dipakai untuk tes dan mode demo tanpa kredensial.
  */
 function clone(row) {

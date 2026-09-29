@@ -1,8 +1,10 @@
 /**
- * Pabrik database. Memilih backend Supabase bila kredensial ada, jika tidak
- * memakai in-memory (berguna untuk tes/demo; produksi wajib Supabase).
+ * Pabrik database. Memakai backend SQLite lokal (default) atau backend yang
+ * disuntikkan eksplisit (in-memory untuk tes/demo).
+ *
+ * Tidak ada lagi ketergantungan runtime pada Supabase/PostgreSQL.
  */
-import { createSupabaseStore } from './supabaseStore.js';
+import { createSqliteStore } from './sqliteStore.js';
 import { createMemoryStore } from './memoryStore.js';
 import { createRepositories } from './repositories.js';
 
@@ -13,19 +15,18 @@ import { createRepositories } from './repositories.js';
 export function createDatabase(config, { logger, store } = {}) {
   let backend = store;
   if (!backend) {
-    const { url, secretKey } = config.supabase || {};
-    if (url && secretKey) {
-      backend = createSupabaseStore({ url, secretKey }, { logger });
-      logger?.info('[DATABASE] Memakai backend Supabase');
-    } else {
-      backend = createMemoryStore();
-      logger?.warn('[DATABASE] Kredensial Supabase kosong — memakai in-memory (bukan produksi)');
-    }
+    const dbPath = config?.database?.path || 'data/khutbah.db';
+    backend = createSqliteStore({ path: dbPath }, { logger });
+    logger?.info(`[DATABASE] Memakai backend SQLite`);
   }
   const repos = createRepositories(backend);
-  return { ...repos, kind: backend.kind };
+  return {
+    ...repos,
+    kind: backend.kind,
+    close: () => backend.close?.(),
+  };
 }
 
-export { createSupabaseStore } from './supabaseStore.js';
+export { createSqliteStore } from './sqliteStore.js';
 export { createMemoryStore } from './memoryStore.js';
 export { createRepositories } from './repositories.js';

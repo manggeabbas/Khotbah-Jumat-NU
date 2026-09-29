@@ -24,7 +24,7 @@ test('U-LOG-02: menyamarkan secret terdaftar', () => {
   assert.ok(!out.includes(secret));
 });
 
-test('U-LOG-03: menyamarkan JWT (Supabase key)', () => {
+test('U-LOG-03: menyamarkan JWT (kunci API gaya lama)', () => {
   const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.abc123DEF456';
   const out = redactString(`key=${jwt}`);
   assert.ok(!out.includes(jwt));

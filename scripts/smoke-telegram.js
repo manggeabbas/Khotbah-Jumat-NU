@@ -25,7 +25,7 @@ async function main() {
   const config = loadConfig(process.env, { requireSecrets: true });
   const logger = createLogger({
     level: 'warn',
-    secrets: [config.telegram.token, config.supabase.secretKey],
+    secrets: [config.telegram.token],
   });
 
   const results = [];

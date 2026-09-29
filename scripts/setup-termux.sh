@@ -34,10 +34,13 @@ else
   echo "[SETUP] .env sudah ada — tidak ditimpa."
 fi
 
-mkdir -p tmp
+mkdir -p tmp data
+
+echo "[SETUP] Menyiapkan database SQLite (idempoten)..."
+node src/database/init.js >/dev/null && echo "[SETUP] data/khutbah.db siap."
 
 echo "[SETUP] Selesai."
 echo "Langkah berikutnya:"
-echo "  1. nano $REPO_DIR/.env   (isi BOT_TOKEN, SUPABASE_URL, kunci, ADMIN_TELEGRAM_ID)"
-echo "  2. npm run migrate       (tinjau SQL; terapkan lewat Supabase SQL Editor)"
+echo "  1. nano $REPO_DIR/.env   (isi TELEGRAM_BOT_TOKEN dan TELEGRAM_USER_ID)"
+echo "  2. npm run db:verify     (cek tabel + constraint + CRUD)"
 echo "  3. npm start"

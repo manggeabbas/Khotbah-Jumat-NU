@@ -51,25 +51,29 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | P-LIVE-01 | scraper | live NU Online (metadata) | PASS (2026-09-27, 40 item) |
 | P-LIVE-02 | scraper | live smoke: listing+2 artikel+upsert+cleanup | PASS (10/10, DB bersih) |
 
-## 3. Database (mock/in-memory)
+## 3. Database (SQLite)
 
 | ID | Area | Skenario | Status |
 |---|---|---|---|
 | D-ART-01 | articles | upsert insert baru | PASS |
-| D-ART-02 | articles | upsert update by source_url | PASS |
+| D-ART-02 | articles | upsert update by url | PASS |
 | D-ART-03 | articles | hash konten mendeteksi perubahan | PASS |
 | D-ART-04 | articles | pagination hasil | PASS |
 | D-ART-05 | articles | image_url & last_synced_at tersimpan | PASS |
 | D-ART-06 | articles | last_synced_at diperbarui walau konten sama | PASS |
 | D-USR-01 | users | upsert by telegram_id unik | PASS |
 | D-FAV-01 | favorites | unique(user_id, article_id) | PASS |
+| D-FAV-02 | favorites | listByUser menyertakan artikel | PASS |
+| D-FAV-03 | favorites | isolasi antar user | PASS |
+| D-FAV-04 | favorites | FK artikel tidak ada → ditolak | PASS |
 | D-HIS-01 | history | batas 50 terakhir | PASS |
+| D-HIS-02 | history | urut terbaru dulu | PASS |
 | D-LOG-01 | search_logs | catat query + result_count | PASS |
 | D-LOG-02 | sync_logs | catat hasil sinkronisasi | PASS |
-| D-SQL-01 | schema | migration idempoten: tabel/indeks/FK/check/RLS | PASS |
-| D-MIG-01 | migrate | listMigrations menemukan 001 | PASS |
-| D-MIG-02 | migrate | readMigration mengembalikan SQL | PASS |
-| D-MIG-03 | migrate | applyMigrations tanpa DATABASE_URL → error | PASS |
+| D-SQL-01 | schema | schema SQLite: tabel/kolom/unique/FK/check/indeks | PASS |
+| D-SQL-02 | init | applySchema idempoten (dua kali aman) | PASS |
+| D-SQL-03 | store | CRUD langsung + count + filter array | PASS |
+| D-SQL-04 | store | Unicode/Arabic tersimpan utuh | PASS |
 
 ## 4. Telegram (mock, tanpa token)
 
@@ -136,8 +140,8 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 
 | ID | Area | Skenario | Status |
 |---|---|---|---|
-| I-SB-01 | supabase | migrasi + CRUD nyata (tabel + unique + FK) | PASS (2026-09-27, db:verify 22/22) |
-| I-E2E-01 | supabase | search FTS + pagination + viewer + favorit + history + PDF (live) | PASS (smoke:e2e 16/16) |
+| I-SB-01 | sqlite | db:init + db:verify (tabel + unique + FK + CRUD) | PASS (db:verify 43/43) |
+| I-E2E-01 | sqlite | search + pagination + viewer + favorit + history + PDF (live) | PASS (smoke:e2e 16/16) |
 | I-TG-01 | telegram | bot live long polling + handler + owner detection | PASS (smoke:telegram 11/11) |
 | I-SC-01 | scraper | fetch live NU Online (mode aman) | PASS (2026-09-27, 40 ditemukan/3 disimpan/0 gagal) |
 | I-PDF-01 | pdf | kirim dokumen ke Telegram nyata | PASS (operasional, message_id diterima); inspeksi visual NOT_VERIFIED |
@@ -159,8 +163,8 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | H-CB-01 | bot | callback tidak dikenal/expired | PASS |
 | — | audit | `npm audit` | PASS (0 vulnerabilities) |
 | — | secret | scan file terlacak | PASS (hanya fixture palsu di tests/) |
-| H-DB-01 | db live | RLS aktif di 6 tabel, 0 policy publik | PASS |
-| H-DB-02 | db live | `anon`/`authenticated` tanpa DML; hanya `service_role` | PASS |
+| H-DB-01 | db live | `PRAGMA foreign_keys` aktif; FK ditolak bila melanggar | PASS |
+| H-DB-02 | db live | UNIQUE url/telegram_id & CHECK status aktif | PASS |
 | H-DB-03 | db live | tidak ada sisa data dummy setelah cleanup | PASS |
 
 ## 8. Termux / perangkat Android
@@ -168,5 +172,5 @@ Matriks pengujian. Status: `PASS` (dijalankan & lulus), `FAIL`, `NOT_VERIFIED`
 | ID | Area | Skenario | Status |
 |---|---|---|---|
 | X-TX-01 | termux | setup script sintaks valid | PENDING |
-| X-TX-02 | termux | install dependency kompatibel | NOT_VERIFIED |
+| X-TX-02 | termux | install dependency kompatibel (`node:sqlite`, tanpa native build) | NOT_VERIFIED |
 | X-TX-03 | termux | bot berjalan 24/7 & restart | NOT_VERIFIED |

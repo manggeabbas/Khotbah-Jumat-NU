@@ -14,9 +14,8 @@ import { ConfigError } from './utils/errors.js';
 // [nama, wajib?, keterangan]
 const CHECKS = [
   [ENV_KEYS.telegramToken, true, 'rahasia'],
-  [ENV_KEYS.supabaseUrl, true, 'publik'],
-  [ENV_KEYS.supabaseSecretKey, true, 'rahasia'],
   [ENV_KEYS.telegramUserId, true, 'non-rahasia (owner/admin)'],
+  [ENV_KEYS.sqliteDbPath, false, 'path lokal (default data/khutbah.db)'],
 ];
 
 function main() {

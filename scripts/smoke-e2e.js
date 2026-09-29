@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * End-to-end test (TERBATAS) memakai Supabase nyata untuk Phase 5–9:
- * search (FTS), pagination, article viewer, favorite add/remove, history, PDF.
+ * End-to-end test (TERBATAS) memakai SQLite lokal untuk Phase 5–9:
+ * search, pagination, article viewer, favorite add/remove, history, PDF.
  *
  * Data uji memakai domain example.invalid dan DIHAPUS kembali di akhir.
  * Tidak menyentuh artikel produksi. Tidak mencetak credential.
@@ -23,7 +23,7 @@ async function main() {
   const config = loadConfig(process.env, { requireSecrets: true });
   const logger = createLogger({
     level: 'warn',
-    secrets: [config.telegram.token, config.supabase.secretKey],
+    secrets: [config.telegram.token],
   });
   const repos = createDatabase(config, { logger });
   const search = createSearchService({ repos, config, logger });
@@ -82,7 +82,7 @@ async function main() {
     // User uji
     userId = (await repos.users.upsertByTelegramId({ telegram_id: 700000000000 + (tag % 1000000), first_name: 'E2E' })).id;
 
-    // SEARCH (FTS Supabase)
+    // SEARCH (SQLite)
     const s1 = await search.search({ query: 'sabar', page: 0, pageSize: 2, userId });
     ok('search menemukan hasil', s1.total >= 3, `total ${s1.total}`);
     ok('pagination: halaman 0 berisi 2 + hasMore', s1.items.length === 2 && s1.hasMore === true);

@@ -97,9 +97,9 @@ export function buildArticleRecord(parsed, config) {
 }
 
 /**
- * @param {{ repos: object, config: object, logger?: object, scraper: object, robots?: object }} deps
+ * @param {{ repos: object, config: object, logger?: object, scraper: object, robots?: object, onProgress?: Function, skipCandidate?: Function }} deps
  */
-export function createSyncService({ repos, config, logger, scraper, robots }) {
+export function createSyncService({ repos, config, logger, scraper, robots, onProgress, skipCandidate }) {
   let running = false;
 
   async function run({ trigger = 'manual' } = {}) {
@@ -109,7 +109,7 @@ export function createSyncService({ repos, config, logger, scraper, robots }) {
     }
     running = true;
 
-    const stats = { found: 0, inserted: 0, updated: 0, failed: 0 };
+    const stats = { found: 0, inserted: 0, updated: 0, failed: 0, skipped: 0 };
     const errors = [];
     const logRow = await repos.syncLogs.start();
     logger?.info('[SYNC] mulai', { trigger, logId: logRow.id });
@@ -136,6 +136,27 @@ export function createSyncService({ repos, config, logger, scraper, robots }) {
       for (const candidate of candidates) {
         if (processed >= limit) break;
         processed++;
+
+        // Lewati artikel yang sudah tersimpan & tidak perlu diambil ulang.
+        if (typeof skipCandidate === 'function') {
+          try {
+            if (await skipCandidate(candidate)) {
+              stats.skipped++;
+              try {
+                onProgress?.({ processed, total: candidates.length, ...stats, url: candidate.url });
+              } catch {
+                /* progress tidak boleh mengganggu */
+              }
+              continue;
+            }
+          } catch (err) {
+            logger?.warn('[SYNC] gagal memeriksa artikel tersimpan, lanjut ambil ulang', {
+              url: candidate.url,
+              error: err?.message,
+            });
+          }
+        }
+
         try {
           if (robots) {
             const p = new URL(candidate.url).pathname;
@@ -170,6 +191,11 @@ export function createSyncService({ repos, config, logger, scraper, robots }) {
           stats.failed++;
           errors.push(`${candidate.url}: ${err?.message || err}`);
           logger?.error('[SYNC] gagal memproses artikel', { url: candidate.url, error: err });
+        }
+        try {
+          onProgress?.({ processed, total: candidates.length, ...stats, url: candidate.url });
+        } catch {
+          /* progress tidak boleh mengganggu sinkronisasi */
         }
       }
 

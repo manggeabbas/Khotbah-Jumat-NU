@@ -37,11 +37,12 @@ export function createAdminHandlers({ config, repos, syncService, logger }) {
       } catch (err) {
         logger?.error('[ADMIN] status gagal', err);
       }
+      const dbKind = repos.kind === 'sqlite' ? 'SQLite' : repos.kind || 'Database';
       const text = [
         '📊 STATUS BOT',
         '',
         'Bot        : aktif (long polling)',
-        `Database   : ${dbOk ? 'OK' : 'GAGAL'}`,
+        `Database   : ${dbOk ? `${dbKind} OK` : `${dbKind} GAGAL`}`,
         `Artikel    : ${articles}`,
         `Scraper    : ${syncService.running ? 'berjalan' : 'idle'}`,
         `Last sync  : ${lastSync?.finished_at || lastSync?.started_at || '-'}`,

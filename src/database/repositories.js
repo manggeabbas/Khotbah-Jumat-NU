@@ -1,6 +1,6 @@
 /**
  * Repository di atas primitive `store`. Satu implementasi dipakai untuk
- * Supabase maupun in-memory, sehingga logika mudah dites tanpa jaringan.
+ * SQLite maupun in-memory, sehingga logika mudah dites tanpa jaringan.
  */
 import { slugify } from '../utils/text.js';
 

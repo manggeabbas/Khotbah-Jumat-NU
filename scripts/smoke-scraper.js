@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Live smoke test scraper NU Online (TERBATAS) + upsert ke Supabase + cleanup.
+ * Live smoke test scraper NU Online (TERBATAS) + upsert ke SQLite + cleanup.
  *
  * Batasan: maksimum 1 halaman listing dan 2 artikel (tanpa full crawl).
  * Cleanup: hanya menghapus baris yang DIBUAT oleh smoke test ini.
@@ -25,7 +25,7 @@ async function main() {
   const config = loadConfig(process.env, { requireSecrets: true });
   const logger = createLogger({
     level: 'warn',
-    secrets: [config.telegram.token, config.supabase.secretKey],
+    secrets: [config.telegram.token],
   });
   const repos = createDatabase(config, { logger });
 

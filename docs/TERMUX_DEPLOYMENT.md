@@ -3,6 +3,13 @@
 Panduan men-deploy bot di **Android + Termux** (production). Bot memakai
 **long polling** sehingga tidak butuh domain, port publik, webhook, atau VPS.
 
+```
+Termux
+  └─ Node.js
+       └─ SQLite (data/khutbah.db)   ← tanpa Supabase
+            └─ Telegram (long polling)
+```
+
 > Status verifikasi: skrip & dokumentasi disiapkan; eksekusi di perangkat
 > Android nyata berstatus **NOT_VERIFIED** sampai Anda menjalankannya.
 
@@ -22,7 +29,7 @@ pkg update && pkg upgrade -y
 
 ```bash
 pkg install -y nodejs git
-node --version   # pastikan >= 20
+node --version   # pastikan >= 22.5 (node:sqlite)
 npm --version
 ```
 
@@ -46,6 +53,9 @@ npm ci --omit=dev      # reproducible dari package-lock.json
 npm install --omit=dev
 ```
 
+Tidak ada native module SQLite: driver memakai `node:sqlite` bawaan Node.js,
+jadi instalasi tidak memicu kompilasi (ramah Termux).
+
 ## 5. Membuat `.env`
 
 ```bash
@@ -58,37 +68,46 @@ nano .env
 ```env
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_USER_ID=
-SUPABASE_URL=
-SUPABASE_SECRET_KEY=
-# opsional (untuk migrasi DB):
-# DATABASE_URL=
+# opsional (default: data/khutbah.db):
+SQLITE_DB_PATH=
 # tuning:
 SCRAPE_INTERVAL_HOURS=6
 FULL_CONTENT_ENABLED=false
 ```
 
 - `TELEGRAM_USER_ID` = ID Telegram owner/admin (non-rahasia, numerik).
-- **Jangan** menaruh token/secret di Git atau mengirimnya ke siapa pun.
+- Tidak ada kredensial database/Supabase yang dibutuhkan.
+- **Jangan** menaruh token di Git atau mengirimnya ke siapa pun.
 - Verifikasi tanpa menampilkan nilai: `npm run check:env`.
 
 ## 7. Database test
 
 ```bash
-npm run db:verify      # cek tabel + CRUD + constraint (butuh Supabase)
+npm run db:init        # buat data/khutbah.db + tabel/indeks (idempoten)
+npm run db:verify      # cek tabel + constraint + CRUD + FK
 ```
 
-Bila tabel belum ada (perlu sekali saja, butuh `DATABASE_URL`):
+Database juga dibuat otomatis saat boot bila belum ada.
+
+### 7b. Memuat seluruh daftar khutbah (indeks penuh)
+
+Database baru dimulai kosong. Untuk mengisi seluruh daftar khutbah dari NU
+Online (saat ini ~1.900 artikel):
 
 ```bash
-npm run migrate -- --apply
+npm run sync:full                # seluruh halaman + semua artikel (bisa lama)
+npm run sync:full -- --max=200   # contoh: batasi dulu agar cepat
 ```
+
+Aman diulang dan bisa dilanjutkan; artikel yang sudah tersimpan dilewati.
+Sinkronisasi terjadwal (`npm run sync`) tetap hanya memindai halaman terbaru.
 
 ## 8. Telegram test
 
 ```bash
 npm run smoke:telegram   # getMe + long polling + handler (lalu berhenti)
 npm run smoke:scraper    # scraper terbatas (1 halaman, 2 artikel) + cleanup
-npm run smoke:e2e        # E2E search/viewer/favorit/history/PDF (Supabase)
+npm run smoke:e2e        # E2E search/viewer/favorit/history/PDF (SQLite)
 ```
 
 ## 9. Jalankan
@@ -167,17 +186,23 @@ stop polling → cleanup → exit).
 cd ~/Projects/Khotbah-Jumat
 git pull
 npm ci --omit=dev
-# bila ada migration baru:
-npm run migrate -- --apply
+# bila ada pembaruan schema (aman diulang):
+npm run db:init
 npm start
 ```
 
 ## 16. Backup
 
 - **Rahasia**: simpan `.env` di tempat aman terpisah (mis. backup terenkripsi).
-- **Database**: gunakan fitur backup Supabase (Dashboard → Database → Backups)
-  dan/atau `pg_dump "$DATABASE_URL" > backup.sql` (butuh `psql`/`pg_dump`).
-- **Source**: GitHub adalah backup kode. **Jangan** commit `.env`.
+- **Database**: salin file SQLite.
+  ```bash
+  mkdir -p backup
+  cp data/khutbah.db backup/khutbah-$(date +%F).db
+  # restore: hentikan bot, lalu
+  cp backup/khutbah-2026-09-29.db data/khutbah.db
+  ```
+- **Source**: GitHub adalah backup kode. **Jangan** commit `.env` maupun
+  `data/khutbah.db` (keduanya sudah masuk `.gitignore`).
 
 ---
 
@@ -188,7 +213,7 @@ npm start
 | `Konfigurasi belum lengkap` | isi `.env`; cek `npm run check:env` |
 | `401: Unauthorized` | `TELEGRAM_BOT_TOKEN` salah |
 | Log `409` | token sama dipakai instance lain — hentikan yang lain |
-| Supabase gagal | cek `SUPABASE_URL`/`SUPABASE_SECRET_KEY`; artikel tersimpan tetap bisa dibaca |
+| Database error | cek `SQLITE_DB_PATH`; jalankan `npm run db:init` & `npm run db:verify` |
 | NU Online down | sinkronisasi dilewati, bot tetap jalan dari data tersimpan |
 | Proses mati setelah layar kunci | aktifkan `termux-wake-lock` + battery unrestricted + Termux:Boot |
 

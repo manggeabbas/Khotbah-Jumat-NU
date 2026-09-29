@@ -51,12 +51,12 @@ test('U-ENV-04: entrypoint memuat .env sebelum membaca konfigurasi/env', () => {
     assert.ok(envIdx < cfgIdx, `${rel}: loadEnv() harus sebelum loadConfig()`);
   }
 
-  const migrateSrc = fs.readFileSync(
-    fileURLToPath(new URL('../src/database/migrate.js', import.meta.url)),
+  const initSrc = fs.readFileSync(
+    fileURLToPath(new URL('../src/database/init.js', import.meta.url)),
     'utf8',
   );
-  const mEnvIdx = migrateSrc.indexOf('loadEnv()');
-  const dbIdx = migrateSrc.indexOf('process.env.DATABASE_URL');
-  assert.notEqual(mEnvIdx, -1, 'migrate.js: harus memanggil loadEnv()');
-  assert.ok(dbIdx === -1 || mEnvIdx < dbIdx, 'migrate.js: loadEnv() harus sebelum DATABASE_URL dibaca');
+  const mEnvIdx = initSrc.indexOf('loadEnv()');
+  const dbIdx = initSrc.indexOf('process.env[ENV_KEYS.sqliteDbPath]');
+  assert.notEqual(mEnvIdx, -1, 'init.js: harus memanggil loadEnv()');
+  assert.ok(dbIdx === -1 || mEnvIdx < dbIdx, 'init.js: loadEnv() harus sebelum path database dibaca');
 });

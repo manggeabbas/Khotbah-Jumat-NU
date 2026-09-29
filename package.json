@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/index.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5"
   },
   "scripts": {
     "start": "node src/index.js",
@@ -14,7 +14,8 @@
     "lint": "node scripts/lint.js",
     "check:env": "node src/checkEnv.js",
     "sync": "node src/scraper/cli-sync.js",
-    "migrate": "node src/database/migrate.js",
+    "sync:full": "node scripts/sync-full.js",
+    "db:init": "node src/database/init.js",
     "db:verify": "node src/database/verify.js",
     "smoke:scraper": "node scripts/smoke-scraper.js",
     "smoke:telegram": "node scripts/smoke-telegram.js",
@@ -29,12 +30,10 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "^2.117.2",
     "cheerio": "^1.2.0",
     "dotenv": "^18.0.4",
     "node-cron": "^4.6.0",
     "pdfkit": "^0.20.2",
-    "pg": "^8.23.0",
     "telegraf": "^4.16.3"
   }
 }

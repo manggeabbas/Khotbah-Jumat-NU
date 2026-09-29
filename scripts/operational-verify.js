@@ -2,7 +2,7 @@
 /**
  * Final operational verification (data PRODUCTION — tidak dihapus).
  *
- * - Memakai Supabase nyata + Telegram nyata + data hasil sync.
+ * - Memakai SQLite lokal + Telegram nyata + data hasil sync.
  * - Handler dipanggil dengan ctx tiruan (tidak mengirim pesan kecuali PDF).
  * - Admin /sync dijalankan dengan batas kecil agar hemat.
  * - Tidak menghapus artikel production.
@@ -47,7 +47,7 @@ async function main() {
 
   loadEnv();
   const config = loadConfig(process.env, { requireSecrets: true });
-  const logger = createLogger({ level: 'warn', secrets: [config.telegram.token, config.supabase.secretKey] });
+  const logger = createLogger({ level: 'warn', secrets: [config.telegram.token] });
   const repos = createDatabase(config, { logger });
   const session = createSessionStore();
   const searchService = createSearchService({ repos, config, logger });
@@ -121,7 +121,7 @@ async function main() {
 
   // --- 2. Database + initial sync ---
   const articleCount = await repos.articles.count();
-  ok('Database (Supabase)', articleCount >= 0, `${articleCount} artikel`);
+  ok('Database (SQLite)', articleCount >= 0, `${articleCount} artikel`);
   const lastSync = await repos.syncLogs.last();
   ok('Initial sync (artikel tersimpan)', articleCount > 0, `${articleCount} artikel; last status: ${lastSync?.status || '-'}`);
 

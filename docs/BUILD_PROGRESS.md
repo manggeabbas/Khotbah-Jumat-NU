@@ -507,3 +507,24 @@ Status: **PASS** ✅
   setiap halaman berisi teks (tidak ada halaman kosong); halaman terakhir
   memuat "Sumber/URL" + "Halaman 5 dari 5". Regresi diuji (F-PDF-10/11).
 - `npm test` 164 pass/1 skipped; lint 59 file.
+
+### Migrasi Database Supabase → SQLite (2026-09-29)
+Status: **PASS** ✅
+
+- **Tujuan:** menghapus ketergantungan runtime pada Supabase; database lokal
+  SQLite (`data/khutbah.db`).
+- **Backup:** branch `migration/supabase-to-sqlite` + snapshot commit sebelum
+  perubahan. Implementasi Supabase lama tetap ada di `master` (commit `fa8f1e3`).
+- **Driver:** `node:sqlite` (bawaan Node >= 22.5) → tanpa native build, ramah
+  Termux. `@supabase/supabase-js` & `pg` dihapus (22 paket).
+- **Skema:** `src/database/schema.sql` (6 tabel, UNIQUE url/telegram_id, FK
+  cascade, CHECK, indeks) — mempertahankan struktur Supabase.
+- **Layer:** `sqliteStore.js` + `init.js` + `verify.js` + `repositories.js`.
+  Handler → service → repository → SQLite.
+- **Search:** query SQLite berbobot (judul 4, deskripsi/kategori 2,
+  cuplikan/isi 1), LIKE ter-escape, pagination, Unicode/Arabic.
+- **Config:** `SQLITE_DB_PATH` (default `data/khutbah.db`); `SUPABASE_URL`,
+  `SUPABASE_SECRET_KEY`, `DATABASE_URL` diabaikan.
+- **Hasil:** `npm run db:init` idempoten; `db:verify` **43/43 PASS**;
+  `smoke:e2e` (SQLite) **16/16 PASS**; `npm test` 167 pass/1 skipped; lint OK.
+- **Skema PostgreSQL historis** diarsipkan di `docs/historical/`.

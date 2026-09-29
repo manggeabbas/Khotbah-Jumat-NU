@@ -14,9 +14,9 @@ const LEVELS = { debug: 10, info: 20, warn: 30, error: 40, silent: 100 };
 const SECRET_PATTERNS = [
   // Telegram bot token: 123456789:AA...
   /\b\d{6,12}:[A-Za-z0-9_-]{30,}\b/g,
-  // JWT (key Supabase gaya lama)
+  // JWT (kunci API bergaya lama)
   /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,}\b/g,
-  // Supabase key gaya baru (sb_secret_... / sb_publishable_...)
+  // Kunci API bergaya baru (mis. sb_secret_... / sb_publishable_...)
   /\bsb_[A-Za-z0-9_-]{20,}\b/g,
 ];
 

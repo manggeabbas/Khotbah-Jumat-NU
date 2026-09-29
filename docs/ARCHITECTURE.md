@@ -13,7 +13,7 @@ master prompt melengkapi PRD.
 | Production | Android + Termux, Node.js |
 | Module system | **ESM** (`"type": "module"`), konsisten di seluruh project |
 | Telegram | **Long polling** (Telegraf), tanpa webhook/domain/server publik |
-| Database | Supabase PostgreSQL (`@supabase/supabase-js`) |
+| Database | SQLite lokal (`node:sqlite`) — tanpa server/cloud |
 | Sumber konten | NU Online `https://islam.nu.or.id/khutbah/` (scraper terjadwal) |
 | Scheduler | `node-cron`, default tiap 6 jam |
 | PDF | `pdfkit` + shaping/bidi Arab (`arabic-reshaper` + `bidi-js`) |
@@ -37,13 +37,13 @@ src/
 │   └── session.js      # state per-user (in-memory)
 ├── search/             # normalisasi + query pencarian
 ├── scraper/            # discovery, fetch client, parser, cleaner, sync
-├── database/           # client supabase + repository + memory store + migrate/verify
+├── database/           # store SQLite + repository + memory store + init/verify
 ├── pdf/                # generator + helper Arab (shaping/bidi)
 ├── scheduler/          # node-cron
 └── utils/              # splitMessage, html, slug, sanitizeFilename, errors
 ```
 
-`supabase/migrations/001_initial_schema.sql` = schema kanonik (reproducible).
+`src/database/schema.sql` = schema kanonik SQLite (reproducible, idempoten).
 
 Prinsip: inisialisasi komponen **dipisah** dari efek samping agar dapat dites
 tanpa token/kredensial. `index.js` hanya yang menjalankan efek samping
@@ -95,19 +95,17 @@ Artikel (DB) → arabic shaping + bidi → pdfkit A4
 ## 5. Database
 
 Tabel: `articles`, `users`, `favorites`, `history`, `search_logs`, `sync_logs`.
-Schema kanonik: `supabase/migrations/001_initial_schema.sql` (idempoten; indeks,
-unique constraint, FK, check, kolom `status`/`content_hash`/`image_url`/`last_synced_at`).
+Schema kanonik: `src/database/schema.sql` (idempoten; indeks, unique constraint,
+FK, check, kolom `status`/`content_hash`/`image_url`/`last_synced_at`).
 
-Penerapan memakai koneksi PostgreSQL langsung (`DATABASE_URL`, `npm run migrate -- --apply`).
-`SUPABASE_SECRET_KEY` (Data API) **tidak** dapat menjalankan DDL. Verifikasi:
-`npm run db:verify`.
+Database dibuka lewat driver bawaan Node.js `node:sqlite`. Inisialisasi:
+`npm run db:init` (aman dijalankan berulang; juga otomatis saat boot).
+Verifikasi: `npm run db:verify`.
 
-Akses Supabase:
-- Server tepercaya (Termux) memakai **Secret key** (`SUPABASE_SECRET_KEY`) dari
-  `.env` lokal; tidak di-commit.
-- Secret key hanya untuk proses server; jangan dipakai di klien publik.
-- RLS aktif di semua tabel tanpa policy publik (least privilege); peran `anon`
-  bukan nama API key.
+Akses database:
+- Hanya proses bot di perangkat yang sama; tidak ada API publik.
+- File `data/khutbah.db` masuk `.gitignore` dan tidak di-commit.
+- `PRAGMA foreign_keys = ON` menjaga integritas FK; UNIQUE/CHECK dipertahankan.
 
 ## 6. Risiko utama
 
@@ -116,6 +114,6 @@ Akses Supabase:
 | Rendering Arab (shaping/bidi/harakat) di PDF | Library shaping + bidi, uji ekstraksi teks & visual halaman |
 | Perubahan markup NU Online | Parser berbasis fixture + tes perubahan markup; selector terpusat |
 | Reproduksi konten pihak ketiga | Mode aman default, feature flag izin, atribusi + tautan |
-| Supabase RLS/least privilege | Secret key server-only; peran `anon` hanya untuk metadata publik |
+| Supabase RLS/least privilege | Tidak lagi berlaku — database lokal hanya diakses proses bot |
 | Android membunuh proses | Termux:Boot + wake-lock + panduan pemulihan (diuji perangkat = NOT_VERIFIED) |
 | Perbedaan Linux vs Termux | Hindari native dep; audit kompatibilitas; `npm ci` di Termux |

@@ -13,7 +13,7 @@ Pasang Termux dari F-Droid (disarankan), lalu:
 ```bash
 pkg update && pkg upgrade -y
 pkg install -y nodejs git
-node --version   # pastikan >= 20
+node --version   # pastikan >= 22.5 (node:sqlite)
 ```
 
 ## 2. Clone & install
@@ -23,21 +23,24 @@ git clone <URL_REPOSITORY> ~/khutbah-bot
 cd ~/khutbah-bot
 npm ci --omit=dev
 cp .env.example .env
-nano .env        # isi TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SECRET_KEY, TELEGRAM_USER_ID
+nano .env        # isi TELEGRAM_BOT_TOKEN dan TELEGRAM_USER_ID
 ```
 
 `npm ci` dipakai agar versi dependency persis seperti `package-lock.json`.
 
-## 3. Migrasi database (sekali)
+## 3. Inisialisasi database (sekali, idempoten)
 
-Terapkan migration reproducible di `supabase/migrations/` (butuh koneksi
-PostgreSQL langsung, bukan Secret key):
+Database SQLite lokal dibuat dari schema `src/database/schema.sql`:
 
 ```bash
-npm run migrate              # tinjau daftar migration + SQL
-# Tambahkan DATABASE_URL ke .env (Supabase > Project Settings > Database > Connection string)
-npm run migrate -- --apply   # terapkan
-npm run db:verify            # verifikasi tabel & CRUD
+npm run db:init     # buat data/khutbah.db + tabel/indeks
+npm run db:verify   # verifikasi tabel & CRUD
+```
+
+Untuk memuat seluruh daftar khutbah dari NU Online (~1.900 artikel):
+
+```bash
+npm run sync:full   # indeks penuh (bisa lama); aman diulang/dilanjutkan
 ```
 
 ## 4. Jalankan
@@ -112,6 +115,6 @@ tmux new -s bot 'cd ~/khutbah-bot && npm start'
 cd ~/khutbah-bot
 git pull
 npm ci --omit=dev
-# (bila ada) npm run migrate -- --apply
+npm run db:init   # aman diulang bila ada pembaruan schema
 npm start
 ```

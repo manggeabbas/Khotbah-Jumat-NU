@@ -1,10 +1,15 @@
 # PRD — Bot Khutbah Jumat Telegram
 
+> **Catatan migrasi (2026-09-29):** database telah dimigrasikan dari Supabase
+> PostgreSQL ke **SQLite lokal** (`data/khutbah.db`). Bagian PRD yang menyebut
+> Supabase/PostgreSQL di bawah bersifat **historis**; implementasi aktif memakai
+> SQLite. Lihat [`docs/MIGRATION_SUPABASE_TO_SQLITE.md`](docs/MIGRATION_SUPABASE_TO_SQLITE.md).
+
 **Versi:** 1.1  
 **Platform:** Android + Termux  
 **Runtime:** Node.js  
 **Interface:** Telegram Bot  
-**Database:** Supabase PostgreSQL  
+**Database:** SQLite lokal (sebelumnya Supabase PostgreSQL)  
 **Sumber konten:** NU Online — https://islam.nu.or.id/khutbah/
 
 ---

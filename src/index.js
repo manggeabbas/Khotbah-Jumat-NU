@@ -16,8 +16,9 @@ function printConfigProblems(problems) {
       problems.map((p) => `  - ${p}`).join('\n') +
       '\n\nLangkah:\n' +
       "  1. Salin .env.example menjadi .env\n" +
-      '  2. Isi SUPABASE_URL, SUPABASE_SECRET_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_USER_ID\n' +
-      '  3. Jalankan ulang: npm start\n\n',
+      '  2. Isi TELEGRAM_BOT_TOKEN dan TELEGRAM_USER_ID\n' +
+      '  3. Inisialisasi database: npm run db:init\n' +
+      '  4. Jalankan ulang: npm start\n\n',
   );
 }
 
@@ -45,7 +46,7 @@ async function main() {
 
   const logger = createLogger({
     level: config.logging.level,
-    secrets: [config.telegram.token, config.supabase.secretKey],
+    secrets: [config.telegram.token],
   });
 
   logger.info('[BOOT] Starting Khutbah Bot...', { env: config.env, node: process.version });

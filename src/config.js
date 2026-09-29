@@ -13,6 +13,7 @@ const DEFAULTS = Object.freeze({
   MAX_HISTORY: 50,
   SCRAPE_INTERVAL_HOURS: 6,
   SNIPPET_MAX_LENGTH: 400,
+  SQLITE_DB_PATH: 'data/khutbah.db',
   SCRAPER_USER_AGENT: 'KhutbahJumatBot/0.1 (+https://github.com/; contact: developer@example.com)',
   SCRAPER_REQUEST_DELAY_MS: 1500,
   SCRAPER_TIMEOUT_MS: 20000,
@@ -32,15 +33,14 @@ const VALID_LOG_LEVELS = new Set(['debug', 'info', 'warn', 'error', 'silent']);
 
 /**
  * Nama-nama environment variable yang dibaca project (terpusat).
- * Rahasia: telegramToken, supabaseSecretKey.
- * Non-rahasia: telegramUserId (ID owner/admin, BUKAN credential).
+ * Rahasia: telegramToken.
+ * Non-rahasia: telegramUserId (ID owner/admin), sqliteDbPath (path lokal).
  */
 export const ENV_KEYS = Object.freeze({
   telegramToken: 'TELEGRAM_BOT_TOKEN',
   telegramTokenLegacy: 'BOT_TOKEN',
   telegramUserId: 'TELEGRAM_USER_ID',
-  supabaseUrl: 'SUPABASE_URL',
-  supabaseSecretKey: 'SUPABASE_SECRET_KEY',
+  sqliteDbPath: 'SQLITE_DB_PATH',
 });
 
 function parseIntStrict(raw, fallback, { min = 0, name } = {}) {
@@ -101,17 +101,14 @@ export function loadConfig(env = process.env, { requireSecrets = false } = {}) {
   const ownerIdRaw = get(ENV_KEYS.telegramUserId);
   const adminIds = parseTelegramIds(ownerIdRaw);
 
-  const supabaseUrl = get(ENV_KEYS.supabaseUrl);
-  // Model API key Supabase terbaru: satu Secret key untuk server (menggantikan
-  // service_role/anon). Nilainya RAHASIA; jangan dipakai di klien publik.
-  const supabaseSecretKey = get(ENV_KEYS.supabaseSecretKey);
+  // Path database SQLite lokal. Dapat dikonfigurasi agar portabel di
+  // Linux/macOS/Android/Termux. Default: data/khutbah.db (relatif cwd).
+  const sqliteDbPath = get(ENV_KEYS.sqliteDbPath) || DEFAULTS.SQLITE_DB_PATH;
 
   // Validasi keberadaan variabel WAJIB. Pesan hanya menyebut NAMA variabel,
   // tidak pernah nilainya.
   if (requireSecrets) {
     if (!token) errors.push(`${ENV_KEYS.telegramToken} belum diisi (dapatkan dari @BotFather).`);
-    if (!supabaseUrl) errors.push(`${ENV_KEYS.supabaseUrl} belum diisi.`);
-    if (!supabaseSecretKey) errors.push(`${ENV_KEYS.supabaseSecretKey} belum diisi.`);
     if (adminIds.length === 0) {
       errors.push(`${ENV_KEYS.telegramUserId} belum diisi (ID Telegram owner/admin).`);
     }
@@ -150,9 +147,8 @@ export function loadConfig(env = process.env, { requireSecrets = false } = {}) {
   const config = {
     env: get('NODE_ENV') || 'development',
     telegram: { token },
-    supabase: {
-      url: supabaseUrl,
-      secretKey: supabaseSecretKey,
+    database: {
+      path: sqliteDbPath,
     },
     admin: {
       ownerId: adminIds[0] || null,
@@ -193,8 +189,6 @@ export function loadConfig(env = process.env, { requireSecrets = false } = {}) {
 export function findConfigProblems(config) {
   const problems = [];
   if (!config?.telegram?.token) problems.push(`${ENV_KEYS.telegramToken} belum diisi.`);
-  if (!config?.supabase?.url) problems.push(`${ENV_KEYS.supabaseUrl} belum diisi.`);
-  if (!config?.supabase?.secretKey) problems.push(`${ENV_KEYS.supabaseSecretKey} belum diisi.`);
   if (!config?.admin?.telegramIds?.length) {
     problems.push(`${ENV_KEYS.telegramUserId} belum diisi (ID Telegram owner/admin).`);
   }

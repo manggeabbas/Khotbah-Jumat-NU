@@ -2,6 +2,32 @@
 
 Format mengikuti Keep a Changelog; versi mengikuti Semantic Versioning.
 
+## [Unreleased] — Migrasi database Supabase → SQLite
+
+### Added
+- Database layer SQLite lokal (`src/database/sqliteStore.js`,
+  `src/database/schema.sql`) memakai driver bawaan Node.js `node:sqlite`
+  (tanpa native build → ramah Termux).
+- `npm run db:init` (inisialisasi idempoten) dan `npm run db:verify`
+  (verifikasi tabel/constraint/FK/indeks/CRUD) untuk SQLite.
+- `npm run sync:full` — indeks penuh seluruh halaman listing NU Online
+  (~1.900 artikel), resumable (melewati artikel yang sudah tersimpan).
+- `SQLITE_DB_PATH` (default `data/khutbah.db`).
+- Dokumentasi migrasi `docs/MIGRATION_SUPABASE_TO_SQLITE.md`; skema PostgreSQL
+  historis diarsipkan di `docs/historical/`.
+
+### Changed
+- Database runtime beralih dari Supabase PostgreSQL ke **SQLite lokal**.
+- Status admin menampilkan `SQLite OK`.
+- Node.js minimal `>= 22.5` (karena `node:sqlite`).
+- `.gitignore` menambahkan `data/`, `backup/`, dan `*.db*`.
+- Pencarian memakai SQLite (pembobotan judul/deskripsi/kategori/cuplikan/isi).
+
+### Removed
+- Dependency `@supabase/supabase-js` dan `pg`.
+- Variabel runtime `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `DATABASE_URL`.
+- `src/database/supabaseStore.js` dan `src/database/migrate.js`.
+
 ## [Unreleased]
 
 ### Added

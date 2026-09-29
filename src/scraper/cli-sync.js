@@ -16,7 +16,7 @@ async function main() {
   const config = loadConfig(process.env);
   const logger = createLogger({
     level: config.logging.level,
-    secrets: [config.telegram.token, config.supabase.secretKey],
+    secrets: [config.telegram.token],
   });
 
   const repos = createDatabase(config, { logger });
