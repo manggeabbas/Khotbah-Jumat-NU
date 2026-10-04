@@ -416,3 +416,16 @@ test('T-ART-07: mode penuh (FULL_CONTENT_ENABLED=true) menampilkan content', asy
   assert.ok(joined.includes(long.slice(-60)), 'harus memuat bagian akhir naskah');
   assert.ok(!/menampilkan cuplikan/i.test(joined), 'tidak boleh menampilkan catatan cuplikan');
 });
+
+test('T-KB-01: label tombol membuang awalan "Khutbah Jumat:" yang redundan', async () => {
+  const { searchResultsKeyboard, listKeyboard } = await import('../src/bot/keyboards/keyboards.js');
+  const items = [{ id: 7, title: 'Khutbah Jumat: Jangan Tunda Amal Baik' }];
+  const sr = searchResultsKeyboard({ items, page: 0, hasMore: false });
+  assert.equal(sr.inline_keyboard[0][0].text, '1. Jangan Tunda Amal Baik');
+  const lk = listKeyboard({ items, page: 0, hasMore: false });
+  assert.equal(lk.inline_keyboard[0][0].text, '1. Jangan Tunda Amal Baik');
+  // Judul tanpa awalan itu tetap utuh
+  const items2 = [{ id: 8, title: 'Khutbah Shalat Istisqa: Memohon Hujan' }];
+  const sr2 = searchResultsKeyboard({ items: items2, page: 0, hasMore: false });
+  assert.equal(sr2.inline_keyboard[0][0].text, '1. Khutbah Shalat Istisqa: Memohon Hujan');
+});

@@ -3,6 +3,16 @@
  * tidak bergantung pada instance Telegraf dan mudah dites.
  */
 
+/**
+ * Label tombol daftar: buang awalan "Khutbah Jumat:" yang redundan dengan
+ * judul menu, supaya lebih banyak judul muat dalam satu baris tombol
+ * (Telegram hanya menampilkan satu baris teks per tombol).
+ */
+function buttonLabel(item, i) {
+  const title = (item.title || '').trim().replace(/^Khutbah Jumat:\s*/, '');
+  return `${i + 1}. ${title}`;
+}
+
 export function mainMenuKeyboard({ isAdmin = false } = {}) {
   const rows = [
     [
@@ -26,7 +36,7 @@ export function searchPromptKeyboard() {
 export function searchResultsKeyboard({ items, page, hasMore }) {
   // Satu tombol per baris berisi nomor + judul, jadi pengguna menekan judulnya langsung.
   const rows = items.map((item, i) => [
-    { text: `${i + 1}. ${(item.title || '').trim()}`, callback_data: `art:${item.id}` },
+    { text: buttonLabel(item, i), callback_data: `art:${item.id}` },
   ]);
   if (hasMore) rows.push([{ text: '➡️ Halaman Berikutnya', callback_data: `srch:page:${page + 1}` }]);
   if (page > 0) rows.push([{ text: '⬅️ Halaman Sebelumnya', callback_data: `srch:page:${page - 1}` }]);
@@ -63,7 +73,7 @@ export function listKeyboard({
   pageCallback = (p) => `list:page:${p}`,
 }) {
   const rows = items.map((item, i) => [
-    { text: `${i + 1}. ${(item.title || '').trim()}`, callback_data: itemCallback(item) },
+    { text: buttonLabel(item, i), callback_data: itemCallback(item) },
   ]);
   if (hasMore) rows.push([{ text: '➡️ Halaman Berikutnya', callback_data: pageCallback(page + 1) }]);
   if (page > 0) rows.push([{ text: '⬅️ Halaman Sebelumnya', callback_data: pageCallback(page - 1) }]);
