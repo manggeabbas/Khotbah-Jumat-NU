@@ -69,3 +69,48 @@ test('T-PDF-02: upload gagal -> tidak crash & tetap cleanup', async () => {
   await assert.doesNotReject(() => handlers.pdfHandlers.export(ctx, art.id));
   assert.equal(state.cleaned, true);
 });
+
+test('T-PDF-03: pesan status sementara dihapus setelah PDF terkirim', async () => {
+  const { handlers, art, state } = await setup({});
+  const deleted = [];
+  const ctx = {
+    chat: { id: 1 },
+    from: { id: 1 },
+    reply: async () => ({ message_id: 42 }),
+    deleteMessage: async (id) => {
+      deleted.push(id);
+    },
+    answerCbQuery: async () => {},
+    callbackQuery: { id: 'x' },
+  };
+  await handlers.pdfHandlers.export(ctx, art.id);
+  assert.equal(state.uploaded.length, 1);
+  assert.deepEqual(deleted, [42]);
+});
+
+test('T-PDF-04: pesan status tetap dihapus bila pengiriman PDF gagal', async () => {
+  const { handlers, art, state } = await setup({
+    uploadDocument: async () => {
+      throw new Error('socket hang up');
+    },
+  });
+  const deleted = [];
+  const texts = [];
+  const ctx = {
+    chat: { id: 1 },
+    from: { id: 1 },
+    reply: async (t) => {
+      texts.push(t);
+      return { message_id: 43 };
+    },
+    deleteMessage: async (id) => {
+      deleted.push(id);
+    },
+    answerCbQuery: async () => {},
+    callbackQuery: { id: 'x' },
+  };
+  await assert.doesNotReject(() => handlers.pdfHandlers.export(ctx, art.id));
+  assert.deepEqual(deleted, [43]);
+  assert.ok(texts.some((t) => /gagal/i.test(t)), 'pesan error tetap dikirim');
+  assert.equal(state.cleaned, true);
+});

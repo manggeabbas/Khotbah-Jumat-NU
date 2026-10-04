@@ -6,6 +6,23 @@ import { backToMenuKeyboard } from '../keyboards/keyboards.js';
 import { respond, ackCallback } from '../context.js';
 import { sendDocumentViaFetch } from '../upload.js';
 
+/**
+ * Menghapus pesan status "Sedang menyiapkan PDF..." agar tidak menumpuk
+ * di chat. Kegagalan penghapusan diabaikan (mis. tanpa izin / pesan lama).
+ */
+async function deleteStatusMessage(ctx, messageId, logger) {
+  if (!messageId) return;
+  try {
+    if (typeof ctx.deleteMessage === 'function') {
+      await ctx.deleteMessage(messageId);
+    } else if (typeof ctx.telegram?.deleteMessage === 'function') {
+      await ctx.telegram.deleteMessage(ctx.chat.id, messageId);
+    }
+  } catch (err) {
+    logger?.warn('[PDF] gagal menghapus pesan status', { error: err.message });
+  }
+}
+
 export function createPdfHandlers({ config, repos, pdfService, logger, uploadDocument }) {
   const upload =
     uploadDocument ||
@@ -41,7 +58,8 @@ export function createPdfHandlers({ config, repos, pdfService, logger, uploadDoc
       }
       if (!article || !article.content) return respond(ctx, ERRORS.notFound, { reply_markup: backToMenuKeyboard() });
 
-      await ctx.reply('⏳ Sedang menyiapkan PDF...');
+      // Pesan status hanya sementara: dihapus lagi setelah PDF terkirim / gagal.
+      const statusMsg = await ctx.reply('⏳ Sedang menyiapkan PDF...');
 
       let file = null;
       try {
@@ -51,6 +69,7 @@ export function createPdfHandlers({ config, repos, pdfService, logger, uploadDoc
         logger?.error('[PDF] gagal membuat/mengirim', err);
         return respond(ctx, ERRORS.pdf, { reply_markup: backToMenuKeyboard() });
       } finally {
+        await deleteStatusMessage(ctx, statusMsg?.message_id, logger);
         if (file?.path) {
           try {
             await pdfService.cleanup(file.path);
