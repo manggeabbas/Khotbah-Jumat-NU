@@ -74,7 +74,9 @@ export function searchPromptText() {
 }
 
 export function formatSearchResults({ query, items, total, page, pageSize }) {
-  const lines = ['🔎 HASIL PENCARIAN', '', `Tema: ${query}`, '', `Ditemukan ${total} materi khutbah.`, '', 'Silakan pilih judul di bawah:'];
+  const lines = ['🔎 HASIL PENCARIAN', '', `Tema: ${query}`, '', `Ditemukan ${total} materi khutbah.`, ''];
+  items.forEach((item, i) => lines.push(`${i + 1}. ${item.title}`));
+  lines.push('', 'Silakan tekan judul di bawah:');
   const start = page * pageSize + 1;
   const end = Math.min((page + 1) * pageSize, total);
   if (total > pageSize) lines.push('', `Menampilkan ${start}–${end} dari ${total}.`);
@@ -116,21 +118,30 @@ export function articleActionsPrompt() {
 }
 
 export function formatLatestList({ items, page, total }) {
-  return ['🆕 KHUTBAH TERBARU', '', 'Silakan pilih judul di bawah:'].join('\n');
+  const lines = ['🆕 KHUTBAH TERBARU', ''];
+  items.forEach((item, i) => lines.push(`${i + 1}. ${item.title}`));
+  lines.push('', 'Silakan tekan judul di bawah:');
+  return lines.join('\n');
 }
 
 export function formatFavoriteList({ items, page }) {
   if (items.length === 0) {
     return '🔖 FAVORIT\n\nBelum ada khutbah yang disimpan.\n\nSimpan khutbah dari menu artikel.';
   }
-  return ['🔖 FAVORIT', '', 'Silakan pilih judul di bawah:'].join('\n');
+  const lines = ['🔖 FAVORIT', ''];
+  items.forEach((item, i) => lines.push(`${i + 1}. ${item.title}`));
+  lines.push('', 'Silakan tekan judul di bawah:');
+  return lines.join('\n');
 }
 
 export function formatHistoryList({ items, page }) {
   if (items.length === 0) {
     return '📚 RIWAYAT\n\nBelum ada riwayat khutbah yang dibuka.';
   }
-  return ['📚 RIWAYAT', '', 'Silakan pilih judul di bawah:'].join('\n');
+  const lines = ['📚 RIWAYAT', ''];
+  items.forEach((item, i) => lines.push(`${i + 1}. ${item.title}`));
+  lines.push('', 'Silakan tekan judul di bawah:');
+  return lines.join('\n');
 }
 
 export function formatAdmin() {

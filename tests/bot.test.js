@@ -429,3 +429,18 @@ test('T-KB-01: label tombol membuang awalan "Khutbah Jumat:" yang redundan', asy
   const sr2 = searchResultsKeyboard({ items: items2, page: 0, hasMore: false });
   assert.equal(sr2.inline_keyboard[0][0].text, '1. Khutbah Shalat Istisqa: Memohon Hujan');
 });
+
+test('T-KB-02: badan pesan memuat daftar judul lengkap bernomor', async () => {
+  const { formatSearchResults, formatLatestList, formatFavoriteList, formatHistoryList } = await import('../src/bot/messages.js');
+  const items = [
+    { id: 1, title: 'Khutbah Jumat: Jangan Tunda Amal Baik' },
+    { id: 2, title: 'Khutbah Jumat: Memperkuat Akidah di Tengah Munculnya Aliran Sesat' },
+  ];
+  const s = formatSearchResults({ query: 'amal', items, total: 2, page: 0, pageSize: 8 });
+  assert.ok(s.includes('1. Khutbah Jumat: Jangan Tunda Amal Baik'));
+  assert.ok(s.includes('2. Khutbah Jumat: Memperkuat Akidah di Tengah Munculnya Aliran Sesat'));
+  assert.ok(s.includes('Silakan tekan judul di bawah:'));
+  assert.ok(formatLatestList({ items, page: 0, total: 2 }).includes('2. Khutbah Jumat: Memperkuat Akidah di Tengah Munculnya Aliran Sesat'));
+  assert.ok(formatFavoriteList({ items, page: 0 }).includes('1. Khutbah Jumat: Jangan Tunda Amal Baik'));
+  assert.ok(formatHistoryList({ items, page: 0 }).includes('1. Khutbah Jumat: Jangan Tunda Amal Baik'));
+});
