@@ -3,16 +3,6 @@
  * tidak bergantung pada instance Telegraf dan mudah dites.
  */
 
-/**
- * Judul tombol dipangkas agar tombol tidak terlalu tinggi di layar ponsel.
- */
-const MAX_BUTTON_TITLE = 64;
-
-function shortTitle(title) {
-  const t = String(title || '').trim();
-  return t.length > MAX_BUTTON_TITLE ? `${t.slice(0, MAX_BUTTON_TITLE - 1)}…` : t;
-}
-
 export function mainMenuKeyboard({ isAdmin = false } = {}) {
   const rows = [
     [
@@ -36,7 +26,7 @@ export function searchPromptKeyboard() {
 export function searchResultsKeyboard({ items, page, hasMore }) {
   // Satu tombol per baris berisi nomor + judul, jadi pengguna menekan judulnya langsung.
   const rows = items.map((item, i) => [
-    { text: `${i + 1}. ${shortTitle(item.title)}`, callback_data: `art:${item.id}` },
+    { text: `${i + 1}. ${(item.title || '').trim()}`, callback_data: `art:${item.id}` },
   ]);
   if (hasMore) rows.push([{ text: '➡️ Halaman Berikutnya', callback_data: `srch:page:${page + 1}` }]);
   if (page > 0) rows.push([{ text: '⬅️ Halaman Sebelumnya', callback_data: `srch:page:${page - 1}` }]);
@@ -73,7 +63,7 @@ export function listKeyboard({
   pageCallback = (p) => `list:page:${p}`,
 }) {
   const rows = items.map((item, i) => [
-    { text: `${i + 1}. ${shortTitle(item.title)}`, callback_data: itemCallback(item) },
+    { text: `${i + 1}. ${(item.title || '').trim()}`, callback_data: itemCallback(item) },
   ]);
   if (hasMore) rows.push([{ text: '➡️ Halaman Berikutnya', callback_data: pageCallback(page + 1) }]);
   if (page > 0) rows.push([{ text: '⬅️ Halaman Sebelumnya', callback_data: pageCallback(page - 1) }]);
