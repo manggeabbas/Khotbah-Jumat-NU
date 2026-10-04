@@ -175,7 +175,9 @@ test('T-FAV-02: daftar favorit menampilkan item', async () => {
   const art = (await repos.articles.upsert({ title: 'Favorit Saya', url: 'https://x/v', content: 'x', content_hash: 'v', snippet: 'x' })).article;
   await repos.favorites.add(user.id, art.id);
   await bot.handleUpdate(callback('menu:fav'));
-  assert.ok(allTexts(calls).some((t) => t.includes('FAVORIT') && t.includes('Favorit Saya')));
+  assert.ok(allTexts(calls).some((t) => t.includes('FAVORIT')));
+  const favBtnTexts = calls.flatMap((c) => c.payload?.reply_markup?.inline_keyboard?.flat() || []).map((b) => b.text);
+  assert.ok(favBtnTexts.some((t) => t.includes('Favorit Saya')), 'tombol harus memuat judul favorit');
 });
 
 test('T-HIS-01: riwayat terisi setelah membuka artikel', async () => {
@@ -185,7 +187,9 @@ test('T-HIS-01: riwayat terisi setelah membuka artikel', async () => {
   assert.equal(await repos.history.count(), 1);
   calls.length = 0;
   await bot.handleUpdate(callback('menu:history'));
-  assert.ok(allTexts(calls).some((t) => t.includes('RIWAYAT') && t.includes('Dibuka')));
+  assert.ok(allTexts(calls).some((t) => t.includes('RIWAYAT')));
+  const histBtnTexts = calls.flatMap((c) => c.payload?.reply_markup?.inline_keyboard?.flat() || []).map((b) => b.text);
+  assert.ok(histBtnTexts.some((t) => t.includes('Dibuka')), 'tombol harus memuat judul riwayat');
 });
 
 test('T-ADM-01: user biasa ditolak dari admin', async () => {
@@ -258,9 +262,10 @@ test('T-LATEST-01: /latest menampilkan artikel terbaru + tombol callback', async
   await bot.handleUpdate(privateMessage('/latest'));
   const texts = allTexts(calls);
   assert.ok(texts.some((t) => t.includes('KHUTBAH TERBARU')));
-  assert.ok(texts.some((t) => t.includes('Terbaru Dua')));
   const kbCall = calls.find((c) => c.payload?.reply_markup?.inline_keyboard?.some((row) => row.some((b) => /^art:\d+$/.test(b.callback_data))));
   assert.ok(kbCall, 'harus ada tombol callback art:<id>');
+  const latestBtnTexts = kbCall.payload.reply_markup.inline_keyboard.flat().map((b) => b.text);
+  assert.ok(latestBtnTexts.some((t) => t.includes('Terbaru Dua')), 'tombol harus memuat judul artikel');
 });
 
 test('T-LATEST-02: /latest saat kosong memberi pesan aman', async () => {

@@ -3,7 +3,15 @@
  * tidak bergantung pada instance Telegraf dan mudah dites.
  */
 
-const NUMBER_EMOJI = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+/**
+ * Judul tombol dipangkas agar tombol tidak terlalu tinggi di layar ponsel.
+ */
+const MAX_BUTTON_TITLE = 64;
+
+function shortTitle(title) {
+  const t = String(title || '').trim();
+  return t.length > MAX_BUTTON_TITLE ? `${t.slice(0, MAX_BUTTON_TITLE - 1)}…` : t;
+}
 
 export function mainMenuKeyboard({ isAdmin = false } = {}) {
   const rows = [
@@ -26,15 +34,10 @@ export function searchPromptKeyboard() {
 }
 
 export function searchResultsKeyboard({ items, page, hasMore }) {
-  const numberButtons = items.map((item, i) => ({
-    text: NUMBER_EMOJI[i] || `${i + 1}.`,
-    callback_data: `art:${item.id}`,
-  }));
-
-  const rows = [];
-  for (let i = 0; i < numberButtons.length; i += 2) {
-    rows.push(numberButtons.slice(i, i + 2));
-  }
+  // Satu tombol per baris berisi nomor + judul, jadi pengguna menekan judulnya langsung.
+  const rows = items.map((item, i) => [
+    { text: `${i + 1}. ${shortTitle(item.title)}`, callback_data: `art:${item.id}` },
+  ]);
   if (hasMore) rows.push([{ text: '➡️ Halaman Berikutnya', callback_data: `srch:page:${page + 1}` }]);
   if (page > 0) rows.push([{ text: '⬅️ Halaman Sebelumnya', callback_data: `srch:page:${page - 1}` }]);
   rows.push([
@@ -69,12 +72,9 @@ export function listKeyboard({
   itemCallback = (item) => `art:${item.id}`,
   pageCallback = (p) => `list:page:${p}`,
 }) {
-  const numberButtons = items.map((item, i) => ({
-    text: NUMBER_EMOJI[i] || `${i + 1}.`,
-    callback_data: itemCallback(item),
-  }));
-  const rows = [];
-  for (let i = 0; i < numberButtons.length; i += 2) rows.push(numberButtons.slice(i, i + 2));
+  const rows = items.map((item, i) => [
+    { text: `${i + 1}. ${shortTitle(item.title)}`, callback_data: itemCallback(item) },
+  ]);
   if (hasMore) rows.push([{ text: '➡️ Halaman Berikutnya', callback_data: pageCallback(page + 1) }]);
   if (page > 0) rows.push([{ text: '⬅️ Halaman Sebelumnya', callback_data: pageCallback(page - 1) }]);
   rows.push([{ text: '🏠 Menu Utama', callback_data: 'menu:main' }]);

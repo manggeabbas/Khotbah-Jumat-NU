@@ -7,8 +7,6 @@ const MONTHS_ID = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 
-const NUMBER_EMOJI = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-
 export function formatDate(iso) {
   if (!iso) return '-';
   const d = new Date(iso);
@@ -76,10 +74,7 @@ export function searchPromptText() {
 }
 
 export function formatSearchResults({ query, items, total, page, pageSize }) {
-  const lines = ['🔎 HASIL PENCARIAN', '', `Tema: ${query}`, '', `Ditemukan ${total} materi khutbah.`, '', 'Silakan pilih:'];
-  items.forEach((item, i) => {
-    lines.push(`${NUMBER_EMOJI[i] || `${i + 1}.`} ${item.title}`);
-  });
+  const lines = ['🔎 HASIL PENCARIAN', '', `Tema: ${query}`, '', `Ditemukan ${total} materi khutbah.`, '', 'Silakan pilih judul di bawah:'];
   const start = page * pageSize + 1;
   const end = Math.min((page + 1) * pageSize, total);
   if (total > pageSize) lines.push('', `Menampilkan ${start}–${end} dari ${total}.`);
@@ -121,30 +116,21 @@ export function articleActionsPrompt() {
 }
 
 export function formatLatestList({ items, page, total }) {
-  const lines = ['🆕 KHUTBAH TERBARU', ''];
-  items.forEach((item, i) => lines.push(`${NUMBER_EMOJI[i] || `${i + 1}.`} ${item.title}`));
-  lines.push('', 'Silakan pilih:');
-  return lines.join('\n');
+  return ['🆕 KHUTBAH TERBARU', '', 'Silakan pilih judul di bawah:'].join('\n');
 }
 
 export function formatFavoriteList({ items, page }) {
   if (items.length === 0) {
     return '🔖 FAVORIT\n\nBelum ada khutbah yang disimpan.\n\nSimpan khutbah dari menu artikel.';
   }
-  const lines = ['🔖 FAVORIT', ''];
-  items.forEach((item, i) => lines.push(`${NUMBER_EMOJI[i] || `${i + 1}.`} ${item.title}`));
-  lines.push('', 'Silakan pilih:');
-  return lines.join('\n');
+  return ['🔖 FAVORIT', '', 'Silakan pilih judul di bawah:'].join('\n');
 }
 
 export function formatHistoryList({ items, page }) {
   if (items.length === 0) {
     return '📚 RIWAYAT\n\nBelum ada riwayat khutbah yang dibuka.';
   }
-  const lines = ['📚 RIWAYAT', ''];
-  items.forEach((item, i) => lines.push(`${NUMBER_EMOJI[i] || `${i + 1}.`} ${item.title}`));
-  lines.push('', 'Silakan pilih:');
-  return lines.join('\n');
+  return ['📚 RIWAYAT', '', 'Silakan pilih judul di bawah:'].join('\n');
 }
 
 export function formatAdmin() {
